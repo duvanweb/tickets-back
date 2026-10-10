@@ -11,6 +11,20 @@ services:
       timeout: 3s
       retries: 10
 
+  # ─── LocalStack (SQS) ───────────────────────────────────
+  localstack:
+    image: localstack/localstack:3.4.0
+    container_name: tickets-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/4566' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # ─── Aplicación Spring Boot ──────────────────────────────
   app:
     build: .
@@ -27,6 +41,12 @@ services:
       - AWS_DYNAMODB_ENDPOINT=http://dynamodb-local:8000
       - AWS_DYNAMODB_REGION=us-east-1
       - AWS_DYNAMODB_EVENTS_TABLE_NAME=events
+      # SQS — endpoint apunta a LocalStack por hostname de Compose
+      - AWS_SQS_ENDPOINT=http://localstack:4566
+      - AWS_SQS_REGION=us-east-1
+      - AWS_SQS_QUEUE_NAME=order-created-queue
     depends_on:
       dynamodb-local:
+        condition: service_healthy
+      localstack:
         condition: service_healthy
