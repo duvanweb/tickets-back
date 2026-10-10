@@ -2,6 +2,8 @@ package com.tickets.infrastructure.adapter.in.web;
 
 import com.tickets.domain.exception.EventNotFoundException;
 import com.tickets.domain.exception.InvalidEventException;
+import com.tickets.domain.exception.InvalidTicketException;
+import com.tickets.domain.exception.TicketNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,5 +34,25 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).containsEntry("error", "Event name must not be blank");
+    }
+
+    @Test
+    void handleTicketNotFoundException_returns404() {
+        TicketNotFoundException ex = new TicketNotFoundException("Ticket not found with id: abc");
+
+        ResponseEntity<Map<String, String>> response = handler.handleDomainException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).containsEntry("error", "Ticket not found with id: abc");
+    }
+
+    @Test
+    void handleInvalidTicketException_returns400() {
+        InvalidTicketException ex = new InvalidTicketException("Cannot transition from SOLD to AVAILABLE");
+
+        ResponseEntity<Map<String, String>> response = handler.handleDomainException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("error", "Cannot transition from SOLD to AVAILABLE");
     }
 }

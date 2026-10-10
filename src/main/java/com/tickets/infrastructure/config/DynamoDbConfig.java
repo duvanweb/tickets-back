@@ -1,6 +1,7 @@
 package com.tickets.infrastructure.config;
 
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
+import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -46,6 +47,78 @@ public class DynamoDbConfig {
     public DynamoDbTable<EventEntity> eventTable(DynamoDbEnhancedClient enhancedClient,
                                                   AwsDynamoDbProperties props) {
         return enhancedClient.table(props.eventsTableName(), TableSchema.fromBean(EventEntity.class));
+    }
+
+    @Bean
+    public DynamoDbTable<TicketEntity> ticketTable(DynamoDbEnhancedClient enhancedClient,
+                                                   AwsDynamoDbProperties props) {
+        return enhancedClient.table(props.tableName(), TableSchema.fromBean(TicketEntity.class));
+    }
+
+    @Bean
+    public CommandLineRunner createTicketTable(DynamoDbClient client, AwsDynamoDbProperties props) {
+        return args -> {
+            try {
+                client.createTable(CreateTableRequest.builder()
+                        .tableName(props.tableName())
+                        .keySchema(KeySchemaElement.builder()
+                                .attributeName("ticketId")
+                                .keyType(KeyType.HASH)
+                                .build())
+                        .attributeDefinitions(
+                                AttributeDefinition.builder()
+                                        .attributeName("ticketId")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build(),
+                                AttributeDefinition.builder()
+                                        .attributeName("eventId")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build(),
+                                AttributeDefinition.builder()
+                                        .attributeName("status")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build(),
+                                AttributeDefinition.builder()
+                                        .attributeName("reservedUntil")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build())
+                        .globalSecondaryIndexes(
+                                GlobalSecondaryIndex.builder()
+                                        .indexName("event-status-index")
+                                        .keySchema(
+                                                KeySchemaElement.builder()
+                                                        .attributeName("eventId")
+                                                        .keyType(KeyType.HASH)
+                                                        .build(),
+                                                KeySchemaElement.builder()
+                                                        .attributeName("status")
+                                                        .keyType(KeyType.RANGE)
+                                                        .build())
+                                        .projection(Projection.builder()
+                                                .projectionType(ProjectionType.ALL)
+                                                .build())
+                                        .build(),
+                                GlobalSecondaryIndex.builder()
+                                        .indexName("status-reservedUntil-index")
+                                        .keySchema(
+                                                KeySchemaElement.builder()
+                                                        .attributeName("status")
+                                                        .keyType(KeyType.HASH)
+                                                        .build(),
+                                                KeySchemaElement.builder()
+                                                        .attributeName("reservedUntil")
+                                                        .keyType(KeyType.RANGE)
+                                                        .build())
+                                        .projection(Projection.builder()
+                                                .projectionType(ProjectionType.ALL)
+                                                .build())
+                                        .build())
+                        .billingMode(BillingMode.PAY_PER_REQUEST)
+                        .build());
+            } catch (ResourceInUseException ignored) {
+                // Table already exists — safe to ignore
+            }
+        };
     }
 
     @Bean

@@ -17,6 +17,10 @@ public class EventEntity {
     private String eventDate;
     private String place;
     private int totalCapacity;
+    private int available;
+    private int reserved;
+    private int sold;
+    private int complimentary;
 
     @DynamoDbPartitionKey
     public String getEventId() {
@@ -58,5 +62,37 @@ public class EventEntity {
 
     public void setTotalCapacity(int totalCapacity) {
         this.totalCapacity = totalCapacity;
+    }
+
+    public int getAvailable() {
+        return available;
+    }
+
+    public void setAvailable(int available) {
+        this.available = available;
+    }
+
+    public int getReserved() {
+        return reserved;
+    }
+
+    public void setReserved(int reserved) {
+        this.reserved = reserved;
+    }
+
+    public int getSold() {
+        return sold;
+    }
+
+    public void setSold(int sold) {
+        this.sold = sold;
+    }
+
+    public int getComplimentary() {
+        return complimentary;
+    }
+
+    public void setComplimentary(int complimentary) {
+        this.complimentary = complimentary;
     }
 }

@@ -37,6 +37,10 @@ public final class EventDtoMapper {
                 event.name(),
                 event.date(),
                 event.place(),
-                event.totalCapacity());
+                event.totalCapacity(),
+                event.available(),
+                event.reserved(),
+                event.sold(),
+                event.complimentary());
     }
 }

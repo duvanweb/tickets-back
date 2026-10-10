@@ -6,7 +6,6 @@ import com.tickets.domain.model.event.EventId;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,9 +29,10 @@ class EventDtoMapperTest {
     }
 
     @Test
-    void toResponse_mapsAllFields() {
+    void toResponse_mapsAllFieldsIncludingCounters() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, NAME, DATE, PLACE, TOTAL_CAPACITY);
+        Event event = Event.reconstitute(id, NAME, DATE, PLACE, TOTAL_CAPACITY,
+                3000, 1000, 800, 200);
 
         EventResponse response = EventDtoMapper.toResponse(event);
 
@@ -41,5 +41,21 @@ class EventDtoMapperTest {
         assertThat(response.date()).isEqualTo(DATE);
         assertThat(response.place()).isEqualTo(PLACE);
         assertThat(response.totalCapacity()).isEqualTo(TOTAL_CAPACITY);
+        assertThat(response.available()).isEqualTo(3000);
+        assertThat(response.reserved()).isEqualTo(1000);
+        assertThat(response.sold()).isEqualTo(800);
+        assertThat(response.complimentary()).isEqualTo(200);
+    }
+
+    @Test
+    void toResponse_forNewEvent_mapsInitializedCounters() {
+        Event event = Event.create(NAME, DATE, PLACE, TOTAL_CAPACITY);
+
+        EventResponse response = EventDtoMapper.toResponse(event);
+
+        assertThat(response.available()).isEqualTo(TOTAL_CAPACITY);
+        assertThat(response.reserved()).isZero();
+        assertThat(response.sold()).isZero();
+        assertThat(response.complimentary()).isZero();
     }
 }

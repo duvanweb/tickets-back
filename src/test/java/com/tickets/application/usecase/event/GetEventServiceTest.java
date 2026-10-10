@@ -29,7 +29,8 @@ class GetEventServiceTest {
     void getById_whenEventExists_returnsEvent() {
         EventId id = EventId.generate();
         Event event = Event.reconstitute(id, "Concierto Rock",
-                LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio Nacional", 5000);
+                LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio Nacional", 5000,
+                5000, 0, 0, 0);
 
         when(repository.findById(id)).thenReturn(Mono.just(event));
 

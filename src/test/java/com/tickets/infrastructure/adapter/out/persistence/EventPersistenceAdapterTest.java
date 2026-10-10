@@ -39,7 +39,7 @@ class EventPersistenceAdapterTest {
     @Test
     void findById_delegatesToDynamoDb() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, "Concierto", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar", 100);
+        Event event = Event.reconstitute(id, "Concierto", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar", 100, 100, 0, 0, 0);
         when(dynamoDbRepository.findById(id)).thenReturn(Mono.just(event));
 
         StepVerifier.create(adapter.findById(id))
