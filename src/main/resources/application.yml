@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: tickets-back
+
+  # Virtual Threads (Java 25) — explicitly enabled
+  threads:
+    virtual:
+      enabled: true
+
+# ─── AWS DynamoDB ───────────────────────────────────────────────────────
+# For local development: run DynamoDB Local on port 8000
+#   docker run -p 8000:8000 amazon/dynamodb-local
+# For production: remove endpoint and configure credentials via IAM
+aws:
+  dynamodb:
+    region: us-east-1
+    endpoint: http://localhost:8000
+    table-name: tickets
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.tickets: DEBUG
