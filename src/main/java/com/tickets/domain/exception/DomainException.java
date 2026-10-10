@@ -8,7 +8,8 @@ package com.tickets.domain.exception;
  */
 public abstract sealed class DomainException extends RuntimeException
         permits InvalidEventException, EventNotFoundException,
-                InvalidTicketException, TicketNotFoundException {
+                InvalidTicketException, TicketNotFoundException,
+                InvalidOrderException, OrderNotFoundException {
 
     protected DomainException(String message) {
         super(message);

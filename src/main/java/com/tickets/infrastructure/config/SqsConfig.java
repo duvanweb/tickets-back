@@ -4,6 +4,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
@@ -14,17 +15,17 @@ import java.net.URI;
 /**
  * Spring configuration for SQS beans.
  *
- * <p>Creates the {@link SqsClient} with an optional endpoint override for
- * local development (LocalStack). A {@link CommandLineRunner} ensures the
- * target queue exists at startup — but only when an endpoint override is
- * configured (local development). In production the queue must pre-exist.</p>
+ * <p>Only active under the {@code worker} profile. Creates the
+ * {@link SqsClient} and ensures the queue exists at startup
+ * (for local development with LocalStack).</p>
  */
 @Configuration
-@EnableConfigurationProperties(AwsSqsProperties.class)
+@Profile("worker")
+@EnableConfigurationProperties(SqsProperties.class)
 public class SqsConfig {
 
     @Bean
-    public SqsClient sqsClient(AwsSqsProperties props) {
+    public SqsClient sqsClient(SqsProperties props) {
         var builder = SqsClient.builder()
                 .region(Region.of(props.region()));
         if (props.endpoint() != null && !props.endpoint().isBlank()) {
@@ -34,18 +35,21 @@ public class SqsConfig {
     }
 
     @Bean
-    public CommandLineRunner createSqsQueue(SqsClient client, AwsSqsProperties props) {
+    public CommandLineRunner createQueue(SqsClient sqsClient, SqsProperties props) {
         return args -> {
-            if (props.endpoint() == null || props.endpoint().isBlank()) {
-                return; // skip auto-creation in production
-            }
+            var queueName = extractQueueName(props.queueUrl());
             try {
-                client.createQueue(CreateQueueRequest.builder()
-                        .queueName(props.queueName())
+                sqsClient.createQueue(CreateQueueRequest.builder()
+                        .queueName(queueName)
                         .build());
             } catch (QueueNameExistsException ignored) {
                 // Queue already exists — safe to ignore
             }
         };
+    }
+
+    private String extractQueueName(String queueUrl) {
+        var parts = queueUrl.split("/");
+        return parts[parts.length - 1];
     }
 }

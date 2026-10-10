@@ -44,7 +44,36 @@ services:
       # SQS — endpoint apunta a LocalStack por hostname de Compose
       - AWS_SQS_ENDPOINT=http://localstack:4566
       - AWS_SQS_REGION=us-east-1
-      - AWS_SQS_QUEUE_NAME=order-created-queue
+      - AWS_SQS_QUEUE_URL=http://localstack:4566/000000000000/order-created-queue
+      - AWS_SQS_MAX_NUMBER_OF_MESSAGES=10
+      - AWS_SQS_WAIT_TIME_SECONDS=20
+      - AWS_SQS_POLL_INTERVAL_MS=1000
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  # ─── Worker (SQS consumer) ───────────────────────────────
+  worker:
+    build: .
+    container_name: tickets-worker
+    command: ["worker.jar"]
+    environment:
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
+      - AWS_REGION=us-east-1
+      # DynamoDB (compartido con la API)
+      - AWS_DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+      - AWS_DYNAMODB_REGION=us-east-1
+      - AWS_DYNAMODB_EVENTS_TABLE_NAME=events
+      # SQS — endpoint apunta a LocalStack por hostname de Compose
+      - AWS_SQS_ENDPOINT=http://localstack:4566
+      - AWS_SQS_REGION=us-east-1
+      - AWS_SQS_QUEUE_URL=http://localstack:4566/000000000000/order-created-queue
+      - AWS_SQS_MAX_NUMBER_OF_MESSAGES=10
+      - AWS_SQS_WAIT_TIME_SECONDS=20
+      - AWS_SQS_POLL_INTERVAL_MS=1000
     depends_on:
       dynamodb-local:
         condition: service_healthy

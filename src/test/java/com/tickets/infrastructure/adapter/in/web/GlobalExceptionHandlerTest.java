@@ -2,7 +2,9 @@ package com.tickets.infrastructure.adapter.in.web;
 
 import com.tickets.domain.exception.EventNotFoundException;
 import com.tickets.domain.exception.InvalidEventException;
+import com.tickets.domain.exception.InvalidOrderException;
 import com.tickets.domain.exception.InvalidTicketException;
+import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.exception.TicketNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -54,5 +56,25 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).containsEntry("error", "Cannot transition from SOLD to AVAILABLE");
+    }
+
+    @Test
+    void handleOrderNotFoundException_returns404() {
+        OrderNotFoundException ex = new OrderNotFoundException("Order not found with id: 123");
+
+        ResponseEntity<Map<String, String>> response = handler.handleDomainException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).containsEntry("error", "Order not found with id: 123");
+    }
+
+    @Test
+    void handleInvalidOrderException_returns400() {
+        InvalidOrderException ex = new InvalidOrderException("Quantity must be positive");
+
+        ResponseEntity<Map<String, String>> response = handler.handleDomainException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).containsEntry("error", "Quantity must be positive");
     }
 }

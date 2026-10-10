@@ -16,9 +16,12 @@ RUN --mount=type=cache,target=/root/.m2 mvn package -B -DskipTests
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 
-# Copiar el JAR construido en la stage anterior
-COPY --from=builder /app/target/*.jar app.jar
+# Copiar ambos JARs: API (default) y Worker (classifier)
+COPY --from=builder /app/target/tickets-back-0.0.1-SNAPSHOT.jar /app/api.jar
+COPY --from=builder /app/target/tickets-back-0.0.1-SNAPSHOT-worker.jar /app/worker.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Seleccionar JAR vía CMD — docker-compose sobrescribe para el worker
+ENTRYPOINT ["java", "-jar"]
+CMD ["api.jar"]
