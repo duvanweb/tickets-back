@@ -4,7 +4,7 @@ import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Manual mapper between the domain {@link Event} and the persistence {@link EventEntity}.
@@ -40,7 +40,7 @@ public final class EventPersistenceMapper {
         return Event.reconstitute(
                 EventId.of(entity.getEventId()),
                 entity.getName(),
-                LocalDate.parse(entity.getEventDate()),
+                LocalDateTime.parse(entity.getEventDate()),
                 entity.getPlace(),
                 entity.getTotalCapacity()
         );

@@ -15,4 +15,6 @@ public interface EventRepository {
     Mono<Event> findById(EventId id);
 
     Flux<Event> findAll();
+
+    Mono<Boolean> existsByName(String name);
 }

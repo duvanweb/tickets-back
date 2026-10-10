@@ -9,13 +9,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.test.StepVerifier;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
-import software.amazon.awssdk.core.pagination.sync.SdkIterable;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +39,7 @@ class EventDynamoDbRepositoryTest {
         EventEntity entity = new EventEntity();
         entity.setEventId(id);
         entity.setName(name);
-        entity.setEventDate("2026-12-15");
+        entity.setEventDate("2026-12-15T19:30:00");
         entity.setPlace("Estadio");
         entity.setTotalCapacity(1000);
         return entity;
@@ -44,7 +47,7 @@ class EventDynamoDbRepositoryTest {
 
     @Test
     void save_callsPutItemAndReturnsEvent() {
-        Event event = Event.create("Concierto", LocalDate.of(2026, 12, 15), "Estadio", 1000);
+        Event event = Event.create("Concierto", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000);
 
         StepVerifier.create(repository.save(event))
                 .assertNext(saved -> {
@@ -106,6 +109,37 @@ class EventDynamoDbRepositoryTest {
         when(pageIterable.items()).thenReturn(items);
 
         StepVerifier.create(repository.findAll())
+                .verifyComplete();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void existsByName_whenNameExists_returnsTrue() {
+        DynamoDbIndex<EventEntity> index = mock(DynamoDbIndex.class);
+        PageIterable<EventEntity> queryResult = mock(PageIterable.class);
+        Page<EventEntity> page = mock(Page.class);
+
+        when(eventTable.index("name-index")).thenReturn(index);
+        when(index.query(any(QueryEnhancedRequest.class))).thenReturn(queryResult);
+        when(queryResult.iterator()).thenReturn(List.of(page).iterator());
+
+        StepVerifier.create(repository.existsByName("Concierto Rock"))
+                .expectNext(true)
+                .verifyComplete();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void existsByName_whenNameDoesNotExist_returnsFalse() {
+        DynamoDbIndex<EventEntity> index = mock(DynamoDbIndex.class);
+        PageIterable<EventEntity> queryResult = mock(PageIterable.class);
+
+        when(eventTable.index("name-index")).thenReturn(index);
+        when(index.query(any(QueryEnhancedRequest.class))).thenReturn(queryResult);
+        when(queryResult.iterator()).thenReturn(List.<Page<EventEntity>>of().iterator());
+
+        StepVerifier.create(repository.existsByName("No existe"))
+                .expectNext(false)
                 .verifyComplete();
     }
 }

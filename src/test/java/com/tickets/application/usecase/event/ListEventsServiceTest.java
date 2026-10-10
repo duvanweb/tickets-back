@@ -10,7 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.when;
 
@@ -25,8 +25,8 @@ class ListEventsServiceTest {
 
     @Test
     void getAll_whenEventsExist_returnsAllEvents() {
-        Event event1 = Event.create("Concierto A", LocalDate.of(2026, 12, 15), "Lugar A", 1000);
-        Event event2 = Event.create("Concierto B", LocalDate.of(2027, 1, 20), "Lugar B", 2000);
+        Event event1 = Event.create("Concierto A", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar A", 1000);
+        Event event2 = Event.create("Concierto B", LocalDateTime.of(2027, 1, 20, 20, 0), "Lugar B", 2000);
 
         when(repository.findAll()).thenReturn(Flux.just(event1, event2));
 

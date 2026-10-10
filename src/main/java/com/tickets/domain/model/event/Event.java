@@ -2,7 +2,7 @@ package com.tickets.domain.model.event;
 
 import com.tickets.domain.exception.InvalidEventException;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
@@ -17,11 +17,11 @@ public final class Event {
 
     private final EventId id;
     private final String name;
-    private final LocalDate date;
+    private final LocalDateTime date;
     private final String place;
     private final int totalCapacity;
 
-    private Event(EventId id, String name, LocalDate date, String place, int totalCapacity) {
+    private Event(EventId id, String name, LocalDateTime date, String place, int totalCapacity) {
         this.id = id;
         this.name = name;
         this.date = date;
@@ -42,7 +42,7 @@ public final class Event {
      * @return a new {@link Event}
      * @throws InvalidEventException if any validation fails
      */
-    public static Event create(String name, LocalDate date, String place, int totalCapacity) {
+    public static Event create(String name, LocalDateTime date, String place, int totalCapacity) {
         validate(name, date, place, totalCapacity);
         return new Event(EventId.generate(), name, date, place, totalCapacity);
     }
@@ -57,11 +57,11 @@ public final class Event {
      * @param totalCapacity the total ticket capacity
      * @return a reconstituted {@link Event}
      */
-    public static Event reconstitute(EventId id, String name, LocalDate date, String place, int totalCapacity) {
+    public static Event reconstitute(EventId id, String name, LocalDateTime date, String place, int totalCapacity) {
         return new Event(id, name, date, place, totalCapacity);
     }
 
-    private static void validate(String name, LocalDate date, String place, int totalCapacity) {
+    private static void validate(String name, LocalDateTime date, String place, int totalCapacity) {
         if (name == null || name.isBlank()) {
             throw new InvalidEventException("Event name must not be blank");
         }
@@ -84,7 +84,7 @@ public final class Event {
         return name;
     }
 
-    public LocalDate date() {
+    public LocalDateTime date() {
         return date;
     }
 

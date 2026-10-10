@@ -17,7 +17,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -45,11 +45,11 @@ class EventControllerTest {
     }
 
     private static final String VALID_BODY = """
-            {"name": "Concierto Rock", "date": "2026-12-15", "place": "Estadio Nacional", "totalCapacity": 5000}""";
+            {"name": "Concierto Rock", "date": "2026-12-15T19:30:00", "place": "Estadio Nacional", "totalCapacity": 5000}""";
 
     @Test
     void create_withValidBody_returns201() {
-        Event event = Event.create("Concierto Rock", LocalDate.of(2026, 12, 15), "Estadio Nacional", 5000);
+        Event event = Event.create("Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio Nacional", 5000);
         when(createEventUseCase.create(any(CreateEventCommand.class))).thenReturn(Mono.just(event));
 
         webTestClient.post().uri("/api/events")
@@ -59,7 +59,7 @@ class EventControllerTest {
                 .expectStatus().isCreated()
                 .expectBody()
                 .jsonPath("$.name").isEqualTo("Concierto Rock")
-                .jsonPath("$.date").isEqualTo("2026-12-15")
+                .jsonPath("$.date").isEqualTo("2026-12-15T19:30:00")
                 .jsonPath("$.place").isEqualTo("Estadio Nacional")
                 .jsonPath("$.totalCapacity").isEqualTo(5000)
                 .jsonPath("$.id").isNotEmpty();
@@ -70,7 +70,7 @@ class EventControllerTest {
         webTestClient.post().uri("/api/events")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
-                        {"name": "", "date": "2026-12-15", "place": "Estadio Nacional", "totalCapacity": 5000}""")
+                        {"name": "", "date": "2026-12-15T19:30:00", "place": "Estadio Nacional", "totalCapacity": 5000}""")
                 .exchange()
                 .expectStatus().isBadRequest();
     }
@@ -90,7 +90,7 @@ class EventControllerTest {
         webTestClient.post().uri("/api/events")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
-                        {"name": "Concierto", "date": "2026-12-15", "place": "", "totalCapacity": 100}""")
+                        {"name": "Concierto", "date": "2026-12-15T19:30:00", "place": "", "totalCapacity": 100}""")
                 .exchange()
                 .expectStatus().isBadRequest();
     }
@@ -100,7 +100,7 @@ class EventControllerTest {
         webTestClient.post().uri("/api/events")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
-                        {"name": "Concierto", "date": "2026-12-15", "place": "Estadio", "totalCapacity": 0}""")
+                        {"name": "Concierto", "date": "2026-12-15T19:30:00", "place": "Estadio", "totalCapacity": 0}""")
                 .exchange()
                 .expectStatus().isBadRequest();
     }
@@ -108,7 +108,7 @@ class EventControllerTest {
     @Test
     void getById_whenExists_returns200() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, "Concierto Rock", LocalDate.of(2026, 12, 15), "Estadio", 1000);
+        Event event = Event.reconstitute(id, "Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000);
         when(getEventUseCase.getById(id)).thenReturn(Mono.just(event));
 
         webTestClient.get().uri("/api/events/{id}", id.value().toString())
@@ -133,8 +133,8 @@ class EventControllerTest {
 
     @Test
     void getAll_whenEventsExist_returns200() {
-        Event e1 = Event.create("Concierto A", LocalDate.of(2026, 12, 15), "Lugar A", 1000);
-        Event e2 = Event.create("Concierto B", LocalDate.of(2027, 1, 20), "Lugar B", 2000);
+        Event e1 = Event.create("Concierto A", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar A", 1000);
+        Event e2 = Event.create("Concierto B", LocalDateTime.of(2027, 1, 20, 20, 0), "Lugar B", 2000);
         when(listEventsUseCase.getAll()).thenReturn(Flux.just(e1, e2));
 
         webTestClient.get().uri("/api/events")

@@ -5,7 +5,7 @@ import com.tickets.domain.model.event.EventId;
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +14,7 @@ class EventPersistenceMapperTest {
 
     private static final EventId EVENT_ID = EventId.generate();
     private static final String NAME = "Concierto Rock";
-    private static final LocalDate DATE = LocalDate.of(2026, 12, 15);
+    private static final LocalDateTime DATE = LocalDateTime.of(2026, 12, 15, 19, 30);
     private static final String PLACE = "Estadio Nacional";
     private static final int TOTAL_CAPACITY = 5000;
 

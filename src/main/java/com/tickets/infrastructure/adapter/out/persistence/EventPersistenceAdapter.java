@@ -34,4 +34,9 @@ public class EventPersistenceAdapter implements EventRepository {
     public Flux<Event> findAll() {
         return dynamoDbRepository.findAll();
     }
+
+    @Override
+    public Mono<Boolean> existsByName(String name) {
+        return dynamoDbRepository.existsByName(name);
+    }
 }

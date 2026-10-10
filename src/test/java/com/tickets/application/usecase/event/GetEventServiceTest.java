@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.when;
 
@@ -29,7 +29,7 @@ class GetEventServiceTest {
     void getById_whenEventExists_returnsEvent() {
         EventId id = EventId.generate();
         Event event = Event.reconstitute(id, "Concierto Rock",
-                LocalDate.of(2026, 12, 15), "Estadio Nacional", 5000);
+                LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio Nacional", 5000);
 
         when(repository.findById(id)).thenReturn(Mono.just(event));
 

@@ -2,6 +2,7 @@ package com.tickets.infrastructure.adapter.out.persistence.entity;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 /**
  * DynamoDB entity representation of an {@link com.tickets.domain.model.event.Event}.
@@ -26,6 +27,7 @@ public class EventEntity {
         this.eventId = eventId;
     }
 
+    @DynamoDbSecondaryPartitionKey(indexNames = "name-index")
     public String getName() {
         return name;
     }

@@ -11,7 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.*;
 
@@ -26,7 +26,7 @@ class EventPersistenceAdapterTest {
 
     @Test
     void save_delegatesToDynamoDb() {
-        Event event = Event.create("Concierto", LocalDate.of(2026, 12, 15), "Lugar", 100);
+        Event event = Event.create("Concierto", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar", 100);
         when(dynamoDbRepository.save(event)).thenReturn(Mono.just(event));
 
         StepVerifier.create(adapter.save(event))
@@ -39,7 +39,7 @@ class EventPersistenceAdapterTest {
     @Test
     void findById_delegatesToDynamoDb() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, "Concierto", LocalDate.of(2026, 12, 15), "Lugar", 100);
+        Event event = Event.reconstitute(id, "Concierto", LocalDateTime.of(2026, 12, 15, 19, 30), "Lugar", 100);
         when(dynamoDbRepository.findById(id)).thenReturn(Mono.just(event));
 
         StepVerifier.create(adapter.findById(id))
@@ -51,8 +51,8 @@ class EventPersistenceAdapterTest {
 
     @Test
     void findAll_delegatesToDynamoDb() {
-        Event e1 = Event.create("A", LocalDate.of(2026, 1, 1), "Lugar", 10);
-        Event e2 = Event.create("B", LocalDate.of(2026, 2, 2), "Lugar", 20);
+        Event e1 = Event.create("A", LocalDateTime.of(2026, 1, 1, 10, 0), "Lugar", 10);
+        Event e2 = Event.create("B", LocalDateTime.of(2026, 2, 2, 11, 0), "Lugar", 20);
         when(dynamoDbRepository.findAll()).thenReturn(Flux.just(e1, e2));
 
         StepVerifier.create(adapter.findAll())
@@ -61,5 +61,16 @@ class EventPersistenceAdapterTest {
                 .verifyComplete();
 
         verify(dynamoDbRepository).findAll();
+    }
+
+    @Test
+    void existsByName_delegatesToDynamoDb() {
+        when(dynamoDbRepository.existsByName("Concierto")).thenReturn(Mono.just(true));
+
+        StepVerifier.create(adapter.existsByName("Concierto"))
+                .expectNext(true)
+                .verifyComplete();
+
+        verify(dynamoDbRepository).existsByName("Concierto");
     }
 }

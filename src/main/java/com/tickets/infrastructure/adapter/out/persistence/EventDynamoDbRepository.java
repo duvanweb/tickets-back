@@ -10,6 +10,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 
 import java.util.List;
@@ -77,5 +79,28 @@ public class EventDynamoDbRepository {
                 })
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(Flux::fromIterable);
+    }
+
+    /**
+     * Checks whether an event with the given name already exists.
+     *
+     * <p>Queries the {@code name-index} GSI for the given name.</p>
+     *
+     * @param name the event name to check
+     * @return a {@link Mono} emitting {@code true} if an event exists, {@code false} otherwise
+     */
+    public Mono<Boolean> existsByName(String name) {
+        return Mono.fromCallable(() -> {
+                    QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                            .queryConditional(QueryConditional.keyEqualTo(
+                                    Key.builder().partitionValue(name).build()))
+                            .limit(1)
+                            .build();
+                    return eventTable.index("name-index")
+                            .query(queryRequest)
+                            .iterator()
+                            .hasNext();
+                })
+                .subscribeOn(Schedulers.boundedElastic());
     }
 }
