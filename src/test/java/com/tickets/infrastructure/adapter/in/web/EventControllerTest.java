@@ -62,6 +62,10 @@ class EventControllerTest {
                 .jsonPath("$.date").isEqualTo("2026-12-15T19:30:00")
                 .jsonPath("$.place").isEqualTo("Estadio Nacional")
                 .jsonPath("$.totalCapacity").isEqualTo(5000)
+                .jsonPath("$.available").isEqualTo(5000)
+                .jsonPath("$.reserved").isEqualTo(0)
+                .jsonPath("$.sold").isEqualTo(0)
+                .jsonPath("$.complimentary").isEqualTo(0)
                 .jsonPath("$.id").isNotEmpty();
     }
 
@@ -108,7 +112,7 @@ class EventControllerTest {
     @Test
     void getById_whenExists_returns200() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, "Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000);
+        Event event = Event.reconstitute(id, "Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000, 1000, 0, 0, 0);
         when(getEventUseCase.getById(id)).thenReturn(Mono.just(event));
 
         webTestClient.get().uri("/api/events/{id}", id.value().toString())
@@ -116,7 +120,11 @@ class EventControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.id").isEqualTo(id.value().toString())
-                .jsonPath("$.name").isEqualTo("Concierto Rock");
+                .jsonPath("$.name").isEqualTo("Concierto Rock")
+                .jsonPath("$.available").isEqualTo(1000)
+                .jsonPath("$.reserved").isEqualTo(0)
+                .jsonPath("$.sold").isEqualTo(0)
+                .jsonPath("$.complimentary").isEqualTo(0);
     }
 
     @Test

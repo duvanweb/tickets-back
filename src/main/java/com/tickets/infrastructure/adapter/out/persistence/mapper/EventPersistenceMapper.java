@@ -27,6 +27,10 @@ public final class EventPersistenceMapper {
         entity.setEventDate(event.date().toString());
         entity.setPlace(event.place());
         entity.setTotalCapacity(event.totalCapacity());
+        entity.setAvailable(event.available());
+        entity.setReserved(event.reserved());
+        entity.setSold(event.sold());
+        entity.setComplimentary(event.complimentary());
         return entity;
     }
 
@@ -42,7 +46,11 @@ public final class EventPersistenceMapper {
                 entity.getName(),
                 LocalDateTime.parse(entity.getEventDate()),
                 entity.getPlace(),
-                entity.getTotalCapacity()
+                entity.getTotalCapacity(),
+                entity.getAvailable(),
+                entity.getReserved(),
+                entity.getSold(),
+                entity.getComplimentary()
         );
     }
 }

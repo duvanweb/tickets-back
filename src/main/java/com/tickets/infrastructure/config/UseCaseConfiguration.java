@@ -4,6 +4,7 @@ import com.tickets.application.port.in.event.CreateEventUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
+import com.tickets.application.port.out.repositories.TicketRepository;
 import com.tickets.application.usecase.event.CreateEventService;
 import com.tickets.application.usecase.event.GetEventService;
 import com.tickets.application.usecase.event.ListEventsService;
@@ -21,8 +22,9 @@ import org.springframework.context.annotation.Configuration;
 public class UseCaseConfiguration {
 
     @Bean
-    public CreateEventUseCase createEventUseCase(EventRepository repository) {
-        return new CreateEventService(repository);
+    public CreateEventUseCase createEventUseCase(EventRepository repository,
+                                                  TicketRepository ticketRepository) {
+        return new CreateEventService(repository, ticketRepository);
     }
 
     @Bean
