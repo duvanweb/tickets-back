@@ -3,6 +3,7 @@ package com.tickets.application.usecase.order;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
@@ -39,6 +40,9 @@ class ProcessOrderServiceTest {
     @Mock
     private EventRepository eventRepository;
 
+    @Mock
+    private TicketTransitionRepository transitionRepository;
+
     @InjectMocks
     private ProcessOrderService service;
 
@@ -59,6 +63,7 @@ class ProcessOrderServiceTest {
         when(orderRepository.findById(orderId)).thenReturn(Mono.just(order));
         when(ticketRepository.findAvailableByEvent(eventId, 2)).thenReturn(Flux.fromIterable(availableTickets));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.fromIterable(availableTickets.subList(0, 2)));
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
         when(eventRepository.save(any())).thenReturn(Mono.just(event));
         when(orderRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
@@ -134,6 +139,7 @@ class ProcessOrderServiceTest {
         when(orderRepository.findById(orderId)).thenReturn(Mono.just(order));
         when(ticketRepository.findAvailableByEvent(eventId, 2)).thenReturn(Flux.fromIterable(availableTickets));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.fromIterable(availableTickets));
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
         when(eventRepository.save(any())).thenReturn(Mono.just(event));
         when(orderRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));

@@ -4,9 +4,12 @@ import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.ticket.Ticket;
+import com.tickets.domain.model.ticket.TicketStatus;
+import com.tickets.domain.model.ticket.TicketTransition;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -29,13 +32,16 @@ public final class ProcessOrderService implements ProcessOrderUseCase {
     private final OrderRepository orderRepository;
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
+    private final TicketTransitionRepository transitionRepository;
 
     public ProcessOrderService(OrderRepository orderRepository,
                                TicketRepository ticketRepository,
-                               EventRepository eventRepository) {
+                               EventRepository eventRepository,
+                               TicketTransitionRepository transitionRepository) {
         this.orderRepository = orderRepository;
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
+        this.transitionRepository = transitionRepository;
     }
 
     @Override
@@ -77,6 +83,7 @@ public final class ProcessOrderService implements ProcessOrderUseCase {
                 reservedUntil);
 
         return ticketRepository.saveAll(reservedTickets)
+                .then(saveTransitions(reservedTickets, TicketStatus.AVAILABLE, TicketStatus.RESERVED, orderIdStr))
                 .then(updateEventCounters(command.eventId(), command.quantity()))
                 .then(orderRepository.save(reservedOrder));
     }
@@ -89,5 +96,13 @@ public final class ProcessOrderService implements ProcessOrderUseCase {
                     return eventRepository.save(updated);
                 })
                 .then();
+    }
+
+    private Mono<Void> saveTransitions(List<Ticket> tickets, TicketStatus from, TicketStatus to,
+                                       String orderId) {
+        List<TicketTransition> transitions = tickets.stream()
+                .map(ticket -> TicketTransition.create(ticket.id(), from, to, orderId))
+                .toList();
+        return transitionRepository.saveAll(transitions);
     }
 }

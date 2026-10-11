@@ -3,6 +3,7 @@ package com.tickets.application.usecase.order;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
@@ -38,6 +39,9 @@ class ReleaseExpiredReservationsServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private TicketTransitionRepository transitionRepository;
+
     @InjectMocks
     private ReleaseExpiredReservationsService service;
 
@@ -65,6 +69,7 @@ class ReleaseExpiredReservationsServiceTest {
         when(ticketRepository.findExpiredReservations(any())).thenReturn(
                 Flux.fromIterable(List.of(expiredTicket1, expiredTicket2)));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.empty());
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(eventWithReserved));
         when(eventRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
         when(orderRepository.findById(orderId)).thenReturn(Mono.just(reservedOrder));
