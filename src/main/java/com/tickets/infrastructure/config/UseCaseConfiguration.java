@@ -3,6 +3,7 @@ package com.tickets.infrastructure.config;
 import com.tickets.application.port.in.event.CreateEventUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
+import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
@@ -13,6 +14,7 @@ import com.tickets.application.port.out.repositories.TicketRepository;
 import com.tickets.application.usecase.event.CreateEventService;
 import com.tickets.application.usecase.event.GetEventService;
 import com.tickets.application.usecase.event.ListEventsService;
+import com.tickets.application.usecase.order.ConfirmOrderService;
 import com.tickets.application.usecase.order.CreateOrderService;
 import com.tickets.application.usecase.order.GetOrderService;
 import com.tickets.application.usecase.order.ProcessOrderService;
@@ -61,5 +63,12 @@ public class UseCaseConfiguration {
                                                     TicketRepository ticketRepository,
                                                     EventRepository eventRepository) {
         return new ProcessOrderService(orderRepository, ticketRepository, eventRepository);
+    }
+
+    @Bean
+    public ConfirmOrderUseCase confirmOrderUseCase(OrderRepository orderRepository,
+                                                    TicketRepository ticketRepository,
+                                                    EventRepository eventRepository) {
+        return new ConfirmOrderService(orderRepository, ticketRepository, eventRepository);
     }
 }

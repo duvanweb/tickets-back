@@ -32,7 +32,7 @@ public enum OrderStatus {
     public boolean canTransitionTo(OrderStatus target) {
         return switch (this) {
             case PENDING              -> target == RESERVED || target == REJECTED;
-            case RESERVED             -> target == PENDING_CONFIRMATION || target == EXPIRED;
+            case RESERVED             -> target == PENDING_CONFIRMATION || target == EXPIRED || target == SOLD;
             case PENDING_CONFIRMATION -> target == SOLD;
             case SOLD, REJECTED, EXPIRED, COMPLIMENTARY -> false;
         };

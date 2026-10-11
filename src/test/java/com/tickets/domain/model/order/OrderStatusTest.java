@@ -35,14 +35,14 @@ class OrderStatusTest {
     }
 
     @Test
-    void reserved_canTransitionToPendingConfirmationAndExpired() {
+    void reserved_canTransitionToPendingConfirmationExpiredAndSold() {
         assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.PENDING_CONFIRMATION)).isTrue();
         assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.EXPIRED)).isTrue();
+        assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.SOLD)).isTrue();
     }
 
     @Test
-    void reserved_cannotTransitionToSoldOrRejected() {
-        assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.SOLD)).isFalse();
+    void reserved_cannotTransitionToRejectedOrItself() {
         assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.REJECTED)).isFalse();
         assertThat(OrderStatus.RESERVED.canTransitionTo(OrderStatus.RESERVED)).isFalse();
     }

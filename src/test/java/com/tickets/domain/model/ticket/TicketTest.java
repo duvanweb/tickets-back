@@ -125,6 +125,32 @@ class TicketTest {
     }
 
     @Test
+    void confirm_withReservedTicket_returnsSoldTicket() {
+        TicketId id = TicketId.generate();
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(10);
+        Ticket reserved = Ticket.reconstitute(id, EVENT_ID, TicketStatus.RESERVED, SEAT_NUMBER,
+                "order-123", "customer-456", reservedUntil, 1);
+
+        Ticket sold = reserved.confirm();
+
+        assertThat(sold.status()).isEqualTo(TicketStatus.SOLD);
+        assertThat(sold.id()).isEqualTo(id);
+        assertThat(sold.orderId()).isEqualTo("order-123");
+        assertThat(sold.customerId()).isEqualTo("customer-456");
+        assertThat(sold.reservedUntil()).isNull();
+        assertThat(sold.version()).isEqualTo(3);
+    }
+
+    @Test
+    void confirm_withNonReservedTicket_throwsInvalidTicketException() {
+        Ticket available = Ticket.create(EVENT_ID, SEAT_NUMBER);
+
+        assertThatThrownBy(available::confirm)
+                .isInstanceOf(InvalidTicketException.class)
+                .hasMessageContaining("Cannot confirm");
+    }
+
+    @Test
     void ticketsWithSameId_areEqual() {
         TicketId id = TicketId.generate();
         Ticket ticket1 = Ticket.reconstitute(id, EVENT_ID, TicketStatus.AVAILABLE, "A1",

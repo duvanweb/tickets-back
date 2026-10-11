@@ -169,6 +169,37 @@ public final class Order {
                 createdAt, reservedUntil, ticketIds);
     }
 
+    /**
+     * Checks whether this order's reservation has expired.
+     *
+     * @return {@code true} if the reservation deadline has passed
+     */
+    public boolean isExpired() {
+        return reservedUntil != null && reservedUntil.isBefore(LocalDateTime.now());
+    }
+
+    /**
+     * Confirms this order by transitioning to {@link OrderStatus#SOLD}.
+     *
+     * <p>Validates that the order is in {@link OrderStatus#RESERVED} and
+     * the reservation has not expired.</p>
+     *
+     * @return a new {@link Order} in SOLD status
+     * @throws InvalidOrderException if the transition is not valid or the reservation expired
+     */
+    public Order confirm() {
+        if (!canTransitionTo(OrderStatus.SOLD)) {
+            throw new InvalidOrderException(
+                    "Cannot confirm order in status " + status);
+        }
+        if (isExpired()) {
+            throw new InvalidOrderException(
+                    "Order reservation has expired");
+        }
+        return new Order(id, eventId, customerId, quantity, OrderStatus.SOLD,
+                createdAt, reservedUntil, ticketIds);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

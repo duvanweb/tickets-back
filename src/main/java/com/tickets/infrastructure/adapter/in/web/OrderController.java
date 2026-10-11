@@ -1,5 +1,6 @@
 package com.tickets.infrastructure.adapter.in.web;
 
+import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
 import com.tickets.domain.model.order.OrderId;
@@ -26,11 +27,14 @@ public class OrderController {
 
     private final CreateOrderUseCase createOrderUseCase;
     private final GetOrderUseCase getOrderUseCase;
+    private final ConfirmOrderUseCase confirmOrderUseCase;
 
     public OrderController(CreateOrderUseCase createOrderUseCase,
-                           GetOrderUseCase getOrderUseCase) {
+                           GetOrderUseCase getOrderUseCase,
+                           ConfirmOrderUseCase confirmOrderUseCase) {
         this.createOrderUseCase = createOrderUseCase;
         this.getOrderUseCase = getOrderUseCase;
+        this.confirmOrderUseCase = confirmOrderUseCase;
     }
 
     @PostMapping
@@ -46,6 +50,12 @@ public class OrderController {
     @GetMapping("/{id}")
     public Mono<ResponseEntity<OrderResponse>> getById(@PathVariable String id) {
         return getOrderUseCase.getById(OrderId.of(id))
+                .map(order -> ResponseEntity.ok(OrderDtoMapper.toResponse(order)));
+    }
+
+    @PostMapping("/{id}/confirm")
+    public Mono<ResponseEntity<OrderResponse>> confirm(@PathVariable String id) {
+        return confirmOrderUseCase.confirm(OrderId.of(id))
                 .map(order -> ResponseEntity.ok(OrderDtoMapper.toResponse(order)));
     }
 }

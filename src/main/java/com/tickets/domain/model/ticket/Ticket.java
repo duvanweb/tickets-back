@@ -127,6 +127,24 @@ public final class Ticket {
                 customerId, reservedUntil, version + 1);
     }
 
+    /**
+     * Confirms this ticket by transitioning through
+     * {@link TicketStatus#PENDING_CONFIRMATION} to {@link TicketStatus#SOLD}.
+     *
+     * <p>Clears the reservation deadline upon sale.</p>
+     *
+     * @return a new {@link Ticket} in SOLD status
+     * @throws InvalidTicketException if the ticket is not in RESERVED status
+     */
+    public Ticket confirm() {
+        if (status != TicketStatus.RESERVED) {
+            throw new InvalidTicketException(
+                    "Cannot confirm ticket in status " + status);
+        }
+        return new Ticket(id, eventId, TicketStatus.SOLD, seatNumber, orderId,
+                customerId, null, version + 2);
+    }
+
     public TicketId id() {
         return id;
     }
