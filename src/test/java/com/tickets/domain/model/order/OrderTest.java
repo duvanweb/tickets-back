@@ -192,4 +192,67 @@ class OrderTest {
                 .isInstanceOf(InvalidOrderException.class)
                 .hasMessageContaining("Cannot transition");
     }
+
+    @Test
+    void isExpired_whenReservedUntilInPast_returnsTrue() {
+        OrderId id = OrderId.generate();
+        Order order = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now().minusHours(1),
+                LocalDateTime.now().minusMinutes(5), List.of());
+
+        assertThat(order.isExpired()).isTrue();
+    }
+
+    @Test
+    void isExpired_whenReservedUntilInFuture_returnsFalse() {
+        OrderId id = OrderId.generate();
+        Order order = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now(),
+                LocalDateTime.now().plusMinutes(10), List.of());
+
+        assertThat(order.isExpired()).isFalse();
+    }
+
+    @Test
+    void isExpired_whenReservedUntilIsNull_returnsFalse() {
+        Order order = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThat(order.isExpired()).isFalse();
+    }
+
+    @Test
+    void confirm_withValidReservedOrder_returnsSoldOrder() {
+        OrderId id = OrderId.generate();
+        List<TicketId> ticketIds = List.of(TicketId.generate(), TicketId.generate());
+        Order reserved = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now(),
+                LocalDateTime.now().plusMinutes(10), ticketIds);
+
+        Order sold = reserved.confirm();
+
+        assertThat(sold.status()).isEqualTo(OrderStatus.SOLD);
+        assertThat(sold.id()).isEqualTo(id);
+        assertThat(sold.ticketIds()).isEqualTo(ticketIds);
+    }
+
+    @Test
+    void confirm_withNonReservedStatus_throwsInvalidOrderException() {
+        Order pending = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThatThrownBy(pending::confirm)
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Cannot confirm");
+    }
+
+    @Test
+    void confirm_withExpiredReservation_throwsInvalidOrderException() {
+        OrderId id = OrderId.generate();
+        Order expired = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now().minusHours(1),
+                LocalDateTime.now().minusMinutes(5), List.of(TicketId.generate()));
+
+        assertThatThrownBy(expired::confirm)
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("expired");
+    }
 }

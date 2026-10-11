@@ -1,5 +1,6 @@
 package com.tickets.infrastructure.adapter.in.web;
 
+import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
 import com.tickets.application.usecase.order.CreateOrderCommand;
@@ -8,6 +9,7 @@ import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderId;
+import com.tickets.domain.model.order.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -29,11 +33,14 @@ class OrderControllerTest {
     @Mock
     private GetOrderUseCase getOrderUseCase;
 
+    @Mock
+    private ConfirmOrderUseCase confirmOrderUseCase;
+
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        OrderController controller = new OrderController(createOrderUseCase, getOrderUseCase);
+        OrderController controller = new OrderController(createOrderUseCase, getOrderUseCase, confirmOrderUseCase);
         webTestClient = WebTestClient.bindToController(controller)
                 .controllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -130,5 +137,48 @@ class OrderControllerTest {
                 .expectStatus().isNotFound()
                 .expectBody()
                 .jsonPath("$.error").isEqualTo("Order not found");
+    }
+
+    @Test
+    void confirm_withValidOrder_returns200WithSoldStatus() {
+        OrderId id = OrderId.generate();
+        EventId eventId = EventId.generate();
+        Order soldOrder = Order.reconstitute(id, eventId, "customer-123", 2,
+                OrderStatus.SOLD, java.time.LocalDateTime.now().minusMinutes(5),
+                java.time.LocalDateTime.now().plusMinutes(5),
+                List.of(com.tickets.domain.model.ticket.TicketId.generate(),
+                        com.tickets.domain.model.ticket.TicketId.generate()));
+        when(confirmOrderUseCase.confirm(id)).thenReturn(Mono.just(soldOrder));
+
+        webTestClient.post().uri("/api/orders/{id}/confirm", id.value().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(id.value().toString())
+                .jsonPath("$.status").isEqualTo("SOLD");
+    }
+
+    @Test
+    void confirm_whenOrderNotFound_returns404() {
+        OrderId id = OrderId.generate();
+        when(confirmOrderUseCase.confirm(id)).thenReturn(Mono.error(new OrderNotFoundException("Order not found")));
+
+        webTestClient.post().uri("/api/orders/{id}/confirm", id.value().toString())
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Order not found");
+    }
+
+    @Test
+    void confirm_whenOrderNotReserved_returns400() {
+        OrderId id = OrderId.generate();
+        when(confirmOrderUseCase.confirm(id)).thenReturn(Mono.error(new InvalidOrderException("Cannot confirm order in status PENDING")));
+
+        webTestClient.post().uri("/api/orders/{id}/confirm", id.value().toString())
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Cannot confirm order in status PENDING");
     }
 }
