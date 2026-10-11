@@ -6,6 +6,7 @@ import com.tickets.domain.model.ticket.TicketId;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -28,4 +29,15 @@ public interface TicketRepository {
      * @return a {@link Flux} emitting available tickets
      */
     Flux<Ticket> findAvailableByEvent(EventId eventId, int limit);
+
+    /**
+     * Finds tickets with {@code RESERVED} status whose reservation deadline
+     * has passed (i.e. {@code reservedUntil < cutoff}).
+     *
+     * <p>Queries the {@code status-reservedUntil-index} GSI.</p>
+     *
+     * @param cutoff the cutoff timestamp (typically {@code now})
+     * @return a {@link Flux} emitting expired reserved tickets
+     */
+    Flux<Ticket> findExpiredReservations(LocalDateTime cutoff);
 }

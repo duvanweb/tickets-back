@@ -255,4 +255,28 @@ class OrderTest {
                 .isInstanceOf(InvalidOrderException.class)
                 .hasMessageContaining("expired");
     }
+
+    @Test
+    void expire_withReservedOrder_returnsExpiredOrder() {
+        OrderId id = OrderId.generate();
+        List<TicketId> ticketIds = List.of(TicketId.generate(), TicketId.generate());
+        Order reserved = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now(),
+                LocalDateTime.now().plusMinutes(10), ticketIds);
+
+        Order expired = reserved.expire();
+
+        assertThat(expired.status()).isEqualTo(OrderStatus.EXPIRED);
+        assertThat(expired.id()).isEqualTo(id);
+        assertThat(expired.ticketIds()).isEqualTo(ticketIds);
+    }
+
+    @Test
+    void expire_withNonReservedStatus_throwsInvalidOrderException() {
+        Order pending = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThatThrownBy(pending::expire)
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Cannot expire");
+    }
 }

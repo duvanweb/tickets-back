@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -36,5 +37,10 @@ public class TicketPersistenceAdapter implements TicketRepository {
     @Override
     public Flux<Ticket> findAvailableByEvent(EventId eventId, int limit) {
         return dynamoDbRepository.findAvailableByEvent(eventId, limit);
+    }
+
+    @Override
+    public Flux<Ticket> findExpiredReservations(LocalDateTime cutoff) {
+        return dynamoDbRepository.findExpiredReservations(cutoff);
     }
 }

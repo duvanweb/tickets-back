@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
@@ -66,5 +67,21 @@ class TicketPersistenceAdapterTest {
                 .verifyComplete();
 
         verify(dynamoDbRepository).findAvailableByEvent(eventId, 5);
+    }
+
+    @Test
+    void findExpiredReservations_delegatesToDynamoDb() {
+        EventId eventId = EventId.generate();
+        List<Ticket> tickets = List.of(
+                Ticket.create(eventId, "1"),
+                Ticket.create(eventId, "2"));
+        LocalDateTime cutoff = LocalDateTime.now();
+        when(dynamoDbRepository.findExpiredReservations(cutoff)).thenReturn(Flux.fromIterable(tickets));
+
+        StepVerifier.create(adapter.findExpiredReservations(cutoff))
+                .expectNextCount(2)
+                .verifyComplete();
+
+        verify(dynamoDbRepository).findExpiredReservations(cutoff);
     }
 }

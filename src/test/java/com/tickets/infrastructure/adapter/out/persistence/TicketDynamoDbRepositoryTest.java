@@ -20,6 +20,7 @@ import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -133,6 +134,29 @@ class TicketDynamoDbRepositoryTest {
 
         StepVerifier.create(repository.findAvailableByEvent(eventId, 5))
                 .expectNextCount(2)
+                .verifyComplete();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void findExpiredReservations_returnsExpiredReservedTickets() {
+        EventId eventId = EventId.generate();
+        TicketEntity entity1 = buildEntity(TicketId.generate().value().toString());
+        entity1.setEventId(eventId.value().toString());
+        entity1.setStatus("RESERVED");
+        entity1.setReservedUntil(LocalDateTime.now().minusMinutes(5).toString());
+
+        DynamoDbIndex<TicketEntity> index = mock(DynamoDbIndex.class);
+        SdkIterable<Page<TicketEntity>> sdkIterable = mock(SdkIterable.class);
+        Page<TicketEntity> page = mock(Page.class);
+
+        when(ticketTable.index("status-reservedUntil-index")).thenReturn(index);
+        when(index.query(any(QueryEnhancedRequest.class))).thenReturn(sdkIterable);
+        when(sdkIterable.stream()).thenReturn(Stream.of(page));
+        when(page.items()).thenReturn(List.of(entity1));
+
+        StepVerifier.create(repository.findExpiredReservations(LocalDateTime.now()))
+                .expectNextCount(1)
                 .verifyComplete();
     }
 }
