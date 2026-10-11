@@ -57,6 +57,27 @@ public final class Order {
     }
 
     /**
+     * Factory method that creates a new {@link Order} in {@link OrderStatus#COMPLIMENTARY}
+     * status with the given ticket IDs.
+     *
+     * @param eventId   the event the complimentary tickets belong to
+     * @param customerId the customer receiving the complimentary tickets
+     * @param quantity   the number of complimentary tickets
+     * @param ticketIds  the associated ticket IDs
+     * @return a new {@link Order} in COMPLIMENTARY status
+     * @throws InvalidOrderException if validation fails
+     */
+    public static Order createComplimentary(EventId eventId, String customerId, int quantity,
+                                             List<TicketId> ticketIds) {
+        validate(eventId, customerId, quantity);
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            throw new InvalidOrderException("Complimentary ticket IDs must not be empty");
+        }
+        return new Order(OrderId.generate(), eventId, customerId, quantity,
+                OrderStatus.COMPLIMENTARY, LocalDateTime.now(), null, List.copyOf(ticketIds));
+    }
+
+    /**
      * Rebuilds an {@link Order} from persistence without validation or ID generation.
      *
      * @param id           the existing order ID

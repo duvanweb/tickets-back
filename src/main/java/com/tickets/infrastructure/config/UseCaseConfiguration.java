@@ -1,11 +1,13 @@
 package com.tickets.infrastructure.config;
 
 import com.tickets.application.port.in.event.CreateEventUseCase;
+import com.tickets.application.port.in.event.GetAvailabilityUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
 import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
+import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.in.order.ReleaseExpiredReservationsUseCase;
 import com.tickets.application.port.out.publishers.MessagePublisher;
@@ -13,11 +15,13 @@ import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
 import com.tickets.application.usecase.event.CreateEventService;
+import com.tickets.application.usecase.event.GetAvailabilityService;
 import com.tickets.application.usecase.event.GetEventService;
 import com.tickets.application.usecase.event.ListEventsService;
 import com.tickets.application.usecase.order.ConfirmOrderService;
 import com.tickets.application.usecase.order.CreateOrderService;
 import com.tickets.application.usecase.order.GetOrderService;
+import com.tickets.application.usecase.order.GrantComplimentaryService;
 import com.tickets.application.usecase.order.ProcessOrderService;
 import com.tickets.application.usecase.order.ReleaseExpiredReservationsService;
 import org.springframework.context.annotation.Bean;
@@ -80,5 +84,18 @@ public class UseCaseConfiguration {
             EventRepository eventRepository,
             OrderRepository orderRepository) {
         return new ReleaseExpiredReservationsService(ticketRepository, eventRepository, orderRepository);
+    }
+
+    @Bean
+    public GetAvailabilityUseCase getAvailabilityUseCase(EventRepository eventRepository) {
+        return new GetAvailabilityService(eventRepository);
+    }
+
+    @Bean
+    public GrantComplimentaryUseCase grantComplimentaryUseCase(
+            TicketRepository ticketRepository,
+            EventRepository eventRepository,
+            OrderRepository orderRepository) {
+        return new GrantComplimentaryService(ticketRepository, eventRepository, orderRepository);
     }
 }
