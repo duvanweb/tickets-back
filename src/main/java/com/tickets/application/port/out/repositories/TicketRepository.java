@@ -1,5 +1,6 @@
 package com.tickets.application.port.out.repositories;
 
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.ticket.Ticket;
 import com.tickets.domain.model.ticket.TicketId;
 import reactor.core.publisher.Flux;
@@ -15,4 +16,16 @@ public interface TicketRepository {
     Flux<Ticket> saveAll(List<Ticket> tickets);
 
     Mono<Ticket> findById(TicketId id);
+
+    /**
+     * Finds available tickets for a given event, limited to {@code limit} results.
+     *
+     * <p>Queries the {@code event-status-index} GSI where
+     * {@code eventId = eventId AND status = AVAILABLE}.</p>
+     *
+     * @param eventId the event ID
+     * @param limit   the maximum number of tickets to return
+     * @return a {@link Flux} emitting available tickets
+     */
+    Flux<Ticket> findAvailableByEvent(EventId eventId, int limit);
 }

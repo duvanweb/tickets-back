@@ -98,6 +98,33 @@ class TicketTest {
     }
 
     @Test
+    void reserve_withAvailableTicket_returnsReservedTicketWithAssociations() {
+        Ticket available = Ticket.create(EVENT_ID, SEAT_NUMBER);
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(10);
+
+        Ticket reserved = available.reserve("order-123", "customer-456", reservedUntil);
+
+        assertThat(reserved.status()).isEqualTo(TicketStatus.RESERVED);
+        assertThat(reserved.orderId()).isEqualTo("order-123");
+        assertThat(reserved.customerId()).isEqualTo("customer-456");
+        assertThat(reserved.reservedUntil()).isEqualTo(reservedUntil);
+        assertThat(reserved.version()).isEqualTo(1);
+        assertThat(reserved.id()).isEqualTo(available.id());
+        assertThat(available.status()).isEqualTo(TicketStatus.AVAILABLE);
+    }
+
+    @Test
+    void reserve_withNonAvailableTicket_throwsInvalidTicketException() {
+        TicketId id = TicketId.generate();
+        Ticket reserved = Ticket.reconstitute(id, EVENT_ID, TicketStatus.RESERVED, SEAT_NUMBER,
+                "order-1", "cust-1", null, 1);
+
+        assertThatThrownBy(() -> reserved.reserve("order-2", "cust-2", LocalDateTime.now()))
+                .isInstanceOf(InvalidTicketException.class)
+                .hasMessageContaining("Cannot transition");
+    }
+
+    @Test
     void ticketsWithSameId_areEqual() {
         TicketId id = TicketId.generate();
         Ticket ticket1 = Ticket.reconstitute(id, EVENT_ID, TicketStatus.AVAILABLE, "A1",

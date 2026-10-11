@@ -1,7 +1,9 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.ticket.Ticket;
 import com.tickets.domain.model.ticket.TicketId;
+import com.tickets.domain.model.ticket.TicketStatus;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
 import com.tickets.infrastructure.adapter.out.persistence.mapper.TicketPersistenceMapper;
 import org.springframework.stereotype.Component;
@@ -9,9 +11,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.BatchWriteItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.WriteBatch;
 
 import java.util.List;
@@ -85,5 +90,35 @@ public class TicketDynamoDbRepository {
                     return entity != null ? TicketPersistenceMapper.toDomain(entity) : null;
                 })
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Finds available tickets for a given event using the {@code event-status-index} GSI.
+     *
+     * @param eventId the event ID
+     * @param limit   the maximum number of tickets to return
+     * @return a {@link Flux} emitting available tickets
+     */
+    public Flux<Ticket> findAvailableByEvent(EventId eventId, int limit) {
+        return Mono.fromCallable(() -> {
+                    DynamoDbIndex<TicketEntity> index =
+                            ticketTable.index("event-status-index");
+                    QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                            .queryConditional(QueryConditional.keyEqualTo(Key.builder()
+                                    .partitionValue(eventId.value().toString())
+                                    .sortValue(TicketStatus.AVAILABLE.name())
+                                    .build()))
+                            .limit(limit)
+                            .build();
+
+                    return index.query(queryRequest)
+                            .stream()
+                            .flatMap(page -> page.items().stream())
+                            .limit(limit)
+                            .map(TicketPersistenceMapper::toDomain)
+                            .toList();
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
     }
 }

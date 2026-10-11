@@ -11,12 +11,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.test.StepVerifier;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.BatchWriteItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -105,6 +110,29 @@ class TicketDynamoDbRepositoryTest {
         when(ticketTable.getItem(any(Key.class))).thenReturn(null);
 
         StepVerifier.create(repository.findById(id))
+                .verifyComplete();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void findAvailableByEvent_returnsAvailableTickets() {
+        EventId eventId = EventId.generate();
+        TicketEntity entity1 = buildEntity(TicketId.generate().value().toString());
+        entity1.setEventId(eventId.value().toString());
+        TicketEntity entity2 = buildEntity(TicketId.generate().value().toString());
+        entity2.setEventId(eventId.value().toString());
+
+        DynamoDbIndex<TicketEntity> index = mock(DynamoDbIndex.class);
+        SdkIterable<Page<TicketEntity>> sdkIterable = mock(SdkIterable.class);
+        Page<TicketEntity> page = mock(Page.class);
+
+        when(ticketTable.index("event-status-index")).thenReturn(index);
+        when(index.query(any(QueryEnhancedRequest.class))).thenReturn(sdkIterable);
+        when(sdkIterable.stream()).thenReturn(Stream.of(page));
+        when(page.items()).thenReturn(List.of(entity1, entity2));
+
+        StepVerifier.create(repository.findAvailableByEvent(eventId, 5))
+                .expectNextCount(2)
                 .verifyComplete();
     }
 }

@@ -21,5 +21,20 @@ public enum OrderStatus {
     SOLD,
     REJECTED,
     EXPIRED,
-    COMPLIMENTARY
+    COMPLIMENTARY;
+
+    /**
+     * Checks whether this status can transition to the target status.
+     *
+     * @param target the desired target status
+     * @return {@code true} if the transition is allowed
+     */
+    public boolean canTransitionTo(OrderStatus target) {
+        return switch (this) {
+            case PENDING              -> target == RESERVED || target == REJECTED;
+            case RESERVED             -> target == PENDING_CONFIRMATION || target == EXPIRED;
+            case PENDING_CONFIRMATION -> target == SOLD;
+            case SOLD, REJECTED, EXPIRED, COMPLIMENTARY -> false;
+        };
+    }
 }

@@ -1,6 +1,7 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.ticket.Ticket;
 import com.tickets.domain.model.ticket.TicketId;
 import org.springframework.stereotype.Component;
@@ -30,5 +31,10 @@ public class TicketPersistenceAdapter implements TicketRepository {
     @Override
     public Mono<Ticket> findById(TicketId id) {
         return dynamoDbRepository.findById(id);
+    }
+
+    @Override
+    public Flux<Ticket> findAvailableByEvent(EventId eventId, int limit) {
+        return dynamoDbRepository.findAvailableByEvent(eventId, limit);
     }
 }

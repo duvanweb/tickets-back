@@ -120,6 +120,55 @@ public final class Order {
         return ticketIds;
     }
 
+    /**
+     * Checks whether this order can transition to the target status.
+     *
+     * @param target the desired target status
+     * @return {@code true} if the transition is allowed
+     */
+    public boolean canTransitionTo(OrderStatus target) {
+        return status.canTransitionTo(target);
+    }
+
+    /**
+     * Reserves this order by transitioning to {@link OrderStatus#RESERVED}, setting the
+     * associated ticket IDs and reservation deadline.
+     *
+     * @param ticketIds    the IDs of the tickets reserved for this order
+     * @param reservedUntil the reservation TTL deadline
+     * @return a new {@link Order} in RESERVED status
+     * @throws InvalidOrderException if the transition is not valid
+     */
+    public Order reserve(List<TicketId> ticketIds, LocalDateTime reservedUntil) {
+        if (!canTransitionTo(OrderStatus.RESERVED)) {
+            throw new InvalidOrderException(
+                    "Cannot transition from " + status + " to RESERVED");
+        }
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            throw new InvalidOrderException("Reserved ticket IDs must not be empty");
+        }
+        if (reservedUntil == null) {
+            throw new InvalidOrderException("Reservation deadline must not be null");
+        }
+        return new Order(id, eventId, customerId, quantity, OrderStatus.RESERVED,
+                createdAt, reservedUntil, List.copyOf(ticketIds));
+    }
+
+    /**
+     * Rejects this order by transitioning to {@link OrderStatus#REJECTED}.
+     *
+     * @return a new {@link Order} in REJECTED status
+     * @throws InvalidOrderException if the transition is not valid
+     */
+    public Order reject() {
+        if (!canTransitionTo(OrderStatus.REJECTED)) {
+            throw new InvalidOrderException(
+                    "Cannot transition from " + status + " to REJECTED");
+        }
+        return new Order(id, eventId, customerId, quantity, OrderStatus.REJECTED,
+                createdAt, reservedUntil, ticketIds);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

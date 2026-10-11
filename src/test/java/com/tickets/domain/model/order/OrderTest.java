@@ -118,4 +118,78 @@ class OrderTest {
 
         assertThat(order1).isNotEqualTo(order2);
     }
+
+    @Test
+    void canTransitionTo_delegatesToStatus() {
+        Order pending = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThat(pending.canTransitionTo(OrderStatus.RESERVED)).isTrue();
+        assertThat(pending.canTransitionTo(OrderStatus.SOLD)).isFalse();
+    }
+
+    @Test
+    void reserve_withValidTransition_returnsReservedOrderWithTicketIds() {
+        Order order = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+        List<TicketId> ticketIds = List.of(TicketId.generate(), TicketId.generate(), TicketId.generate());
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(10);
+
+        Order reserved = order.reserve(ticketIds, reservedUntil);
+
+        assertThat(reserved.status()).isEqualTo(OrderStatus.RESERVED);
+        assertThat(reserved.ticketIds()).hasSize(3);
+        assertThat(reserved.reservedUntil()).isEqualTo(reservedUntil);
+        assertThat(reserved.id()).isEqualTo(order.id());
+        assertThat(order.status()).isEqualTo(OrderStatus.PENDING);
+    }
+
+    @Test
+    void reserve_withNonPendingStatus_throwsInvalidOrderException() {
+        OrderId id = OrderId.generate();
+        Order reserved = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now(), null, List.of());
+
+        assertThatThrownBy(() -> reserved.reserve(List.of(TicketId.generate()), LocalDateTime.now()))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Cannot transition");
+    }
+
+    @Test
+    void reserve_withEmptyTicketIds_throwsInvalidOrderException() {
+        Order order = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThatThrownBy(() -> order.reserve(List.of(), LocalDateTime.now().plusMinutes(10)))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("ticket IDs");
+    }
+
+    @Test
+    void reserve_withNullReservedUntil_throwsInvalidOrderException() {
+        Order order = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        assertThatThrownBy(() -> order.reserve(List.of(TicketId.generate()), null))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("deadline");
+    }
+
+    @Test
+    void reject_withPendingOrder_returnsRejectedOrder() {
+        Order order = Order.create(EVENT_ID, CUSTOMER_ID, QUANTITY);
+
+        Order rejected = order.reject();
+
+        assertThat(rejected.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(rejected.id()).isEqualTo(order.id());
+        assertThat(order.status()).isEqualTo(OrderStatus.PENDING);
+    }
+
+    @Test
+    void reject_withNonPendingStatus_throwsInvalidOrderException() {
+        OrderId id = OrderId.generate();
+        Order reserved = Order.reconstitute(id, EVENT_ID, CUSTOMER_ID, QUANTITY,
+                OrderStatus.RESERVED, LocalDateTime.now(), null, List.of());
+
+        assertThatThrownBy(reserved::reject)
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Cannot transition");
+    }
 }

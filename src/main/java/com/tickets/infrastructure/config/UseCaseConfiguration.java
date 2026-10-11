@@ -5,6 +5,7 @@ import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
+import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.out.publishers.MessagePublisher;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
@@ -14,6 +15,7 @@ import com.tickets.application.usecase.event.GetEventService;
 import com.tickets.application.usecase.event.ListEventsService;
 import com.tickets.application.usecase.order.CreateOrderService;
 import com.tickets.application.usecase.order.GetOrderService;
+import com.tickets.application.usecase.order.ProcessOrderService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -52,5 +54,12 @@ public class UseCaseConfiguration {
     @Bean
     public GetOrderUseCase getOrderUseCase(OrderRepository orderRepository) {
         return new GetOrderService(orderRepository);
+    }
+
+    @Bean
+    public ProcessOrderUseCase processOrderUseCase(OrderRepository orderRepository,
+                                                    TicketRepository ticketRepository,
+                                                    EventRepository eventRepository) {
+        return new ProcessOrderService(orderRepository, ticketRepository, eventRepository);
     }
 }
