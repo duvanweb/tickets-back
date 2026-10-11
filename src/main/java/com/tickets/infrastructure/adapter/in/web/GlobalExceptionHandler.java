@@ -3,7 +3,9 @@ package com.tickets.infrastructure.adapter.in.web;
 import com.tickets.domain.exception.DomainException;
 import com.tickets.domain.exception.EventNotFoundException;
 import com.tickets.domain.exception.InvalidEventException;
+import com.tickets.domain.exception.InvalidOrderException;
 import com.tickets.domain.exception.InvalidTicketException;
+import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.exception.TicketNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,8 @@ public class GlobalExceptionHandler {
             case InvalidEventException ignored -> HttpStatus.BAD_REQUEST;
             case TicketNotFoundException ignored -> HttpStatus.NOT_FOUND;
             case InvalidTicketException ignored -> HttpStatus.BAD_REQUEST;
+            case OrderNotFoundException ignored -> HttpStatus.NOT_FOUND;
+            case InvalidOrderException ignored -> HttpStatus.BAD_REQUEST;
         };
 
         return ResponseEntity.status(status)

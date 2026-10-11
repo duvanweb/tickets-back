@@ -1,6 +1,7 @@
 package com.tickets.infrastructure.config;
 
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
+import com.tickets.infrastructure.adapter.out.persistence.entity.OrderEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -112,6 +113,35 @@ public class DynamoDbConfig {
                                         .projection(Projection.builder()
                                                 .projectionType(ProjectionType.ALL)
                                                 .build())
+                                        .build())
+                        .billingMode(BillingMode.PAY_PER_REQUEST)
+                        .build());
+            } catch (ResourceInUseException ignored) {
+                // Table already exists — safe to ignore
+            }
+        };
+    }
+
+    @Bean
+    public DynamoDbTable<OrderEntity> orderTable(DynamoDbEnhancedClient enhancedClient,
+                                                  AwsDynamoDbProperties props) {
+        return enhancedClient.table(props.ordersTableName(), TableSchema.fromBean(OrderEntity.class));
+    }
+
+    @Bean
+    public CommandLineRunner createOrderTable(DynamoDbClient client, AwsDynamoDbProperties props) {
+        return args -> {
+            try {
+                client.createTable(CreateTableRequest.builder()
+                        .tableName(props.ordersTableName())
+                        .keySchema(KeySchemaElement.builder()
+                                .attributeName("orderId")
+                                .keyType(KeyType.HASH)
+                                .build())
+                        .attributeDefinitions(
+                                AttributeDefinition.builder()
+                                        .attributeName("orderId")
+                                        .attributeType(ScalarAttributeType.S)
                                         .build())
                         .billingMode(BillingMode.PAY_PER_REQUEST)
                         .build());

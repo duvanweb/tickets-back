@@ -17,6 +17,7 @@ aws:
     endpoint: http://localhost:8000
     table-name: tickets
     events-table-name: events
+    orders-table-name: orders
   sqs:
     region: us-east-1
     endpoint: http://localhost:4566   # LocalStack for local dev; remove in production

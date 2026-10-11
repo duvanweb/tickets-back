@@ -34,18 +34,21 @@ dominio → (nada, 100% puro)
 ```
 tickets-back/
 ├── pom.xml
+├── Dockerfile                          # Multi-stage build (Maven+JDK25 → JRE25)
+├── docker-compose.yml                  # DynamoDB Local + app
+├── .dockerignore
 ├── README.md
 └── src/
     ├── main/
     │   ├── java/com/tickets/
     │   │   ├── TicketsApplication.java
     │   │   ├── domain/
-    │   │   │   ├── model/ticket/          # Ticket, TicketId, TicketStatus
-    │   │   │   └── exception/             # DomainException (sealed), InvalidTicket, NotFound
+    │   │   │   ├── model/event/           # Event, EventId, EventStatus
+    │   │   │   └── exception/            # DomainException (sealed), InvalidEvent, NotFound
     │   │   ├── application/
-    │   │   │   ├── port/in/ticket/        # Use case interfaces
+    │   │   │   ├── port/in/event/         # Use case interfaces
     │   │   │   ├── port/out/repositories/ # Repository interfaces
-    │   │   │   └── usecase/ticket/        # Use case implementations
+    │   │   │   └── usecase/event/         # Use case implementations
     │   │   └── infrastructure/
     │   │       ├── adapter/in/web/        # REST controllers, DTOs
     │   │       ├── adapter/out/persistence/ # DynamoDB adapters
@@ -57,13 +60,44 @@ tickets-back/
 
 ## Prerrequisitos
 
-- **Java 25** (OpenJDK 25+)
-- **Maven 3.9+**
-- **DynamoDB Local** (para desarrollo) o acceso a AWS DynamoDB
+- **Docker** + **Docker Compose** (recomendado — no requiere Java ni Maven instalados)
+- O, para ejecución local: **Java 25** (OpenJDK 25+) y **Maven 3.9+**
 
 ## Ejecución
 
-### Desarrollo con DynamoDB Local
+### Con Docker Compose (recomendado)
+
+Levanta DynamoDB Local y la aplicación con un solo comando. El build del JAR
+se realiza dentro del contenedor (multi-stage build), por lo que no requiere
+Java ni Maven instalados localmente.
+
+```bash
+# Construir y arrancar (primera vez o tras cambios en el código)
+docker compose up --build
+
+# Arrancar en background
+docker compose up --build -d
+
+# Ver logs
+docker compose logs -f app
+
+# Detener
+docker compose down
+```
+
+Servicios expuestos:
+
+| Servicio | URL | Descripción |
+|---|---|---|
+| Aplicación | `http://localhost:8080` | API REST Spring Boot |
+| DynamoDB Local | `http://localhost:8000` | Inspección con AWS CLI o GUI |
+
+La tabla `events` se crea automáticamente al arrancar. DynamoDB Local
+opera en modo in-memory (los datos se pierden al detener los contenedores).
+
+### Local sin Docker
+
+Alternativa para desarrollo con hot reload. Requiere Java 25 y Maven.
 
 ```bash
 # Iniciar DynamoDB Local
@@ -72,8 +106,6 @@ docker run -p 8000:8000 amazon/dynamodb-local
 # Arrancar la aplicación
 mvn spring-boot:run
 ```
-
-La aplicación está disponible en `http://localhost:8080`.
 
 ### Comandos Maven
 
@@ -88,19 +120,23 @@ mvn package                # Build del JAR
 
 | Método | Ruta | Descripción | Status |
 |---|---|---|---|
-| `POST` | `/api/tickets` | Crea un ticket | 201 Created |
-| `GET` | `/api/tickets/{id}` | Consulta por ID | 200 OK / 404 Not Found |
+| `POST` | `/api/events` | Crea un evento | 201 Created |
+| `GET` | `/api/events/{id}` | Consulta por ID | 200 OK / 404 Not Found |
+| `GET` | `/api/events` | Lista todos los eventos | 200 OK |
 
 ### Ejemplo
 
 ```bash
-# Crear ticket
-curl -X POST http://localhost:8080/api/tickets \
+# Crear evento
+curl -X POST http://localhost:8080/api/events \
   -H "Content-Type: application/json" \
-  -d '{"title": "Bug en login", "description": "No funciona el botón"}'
+  -d '{"name": "Concierto Docker", "date": "2026-12-15", "place": "Estadio Nacional", "totalCapacity": 500}'
 
-# Consultar ticket
-curl http://localhost:8080/api/tickets/{id}
+# Consultar evento
+curl http://localhost:8080/api/events/{id}
+
+# Listar todos los eventos
+curl http://localhost:8080/api/events
 ```
 
 ## Git Flow
