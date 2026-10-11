@@ -177,6 +177,30 @@ class TicketTest {
     }
 
     @Test
+    void grantComplimentary_withAvailableTicket_returnsComplimentaryTicket() {
+        Ticket available = Ticket.create(EVENT_ID, SEAT_NUMBER);
+
+        Ticket complimentary = available.grantComplimentary("order-123", "customer-456");
+
+        assertThat(complimentary.status()).isEqualTo(TicketStatus.COMPLIMENTARY);
+        assertThat(complimentary.orderId()).isEqualTo("order-123");
+        assertThat(complimentary.customerId()).isEqualTo("customer-456");
+        assertThat(complimentary.version()).isEqualTo(1);
+        assertThat(complimentary.id()).isEqualTo(available.id());
+    }
+
+    @Test
+    void grantComplimentary_withNonAvailableTicket_throwsInvalidTicketException() {
+        TicketId id = TicketId.generate();
+        Ticket reserved = Ticket.reconstitute(id, EVENT_ID, TicketStatus.RESERVED, SEAT_NUMBER,
+                "order-1", "cust-1", null, 1);
+
+        assertThatThrownBy(() -> reserved.grantComplimentary("order-2", "cust-2"))
+                .isInstanceOf(InvalidTicketException.class)
+                .hasMessageContaining("Cannot grant complimentary");
+    }
+
+    @Test
     void ticketsWithSameId_areEqual() {
         TicketId id = TicketId.generate();
         Ticket ticket1 = Ticket.reconstitute(id, EVENT_ID, TicketStatus.AVAILABLE, "A1",

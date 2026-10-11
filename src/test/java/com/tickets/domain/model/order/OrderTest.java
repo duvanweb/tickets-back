@@ -279,4 +279,33 @@ class OrderTest {
                 .isInstanceOf(InvalidOrderException.class)
                 .hasMessageContaining("Cannot expire");
     }
+
+    @Test
+    void createComplimentary_withValidInputs_returnsComplimentaryOrder() {
+        List<TicketId> ticketIds = List.of(TicketId.generate(), TicketId.generate());
+
+        Order order = Order.createComplimentary(EVENT_ID, CUSTOMER_ID, 2, ticketIds);
+
+        assertThat(order.status()).isEqualTo(OrderStatus.COMPLIMENTARY);
+        assertThat(order.eventId()).isEqualTo(EVENT_ID);
+        assertThat(order.customerId()).isEqualTo(CUSTOMER_ID);
+        assertThat(order.quantity()).isEqualTo(2);
+        assertThat(order.ticketIds()).hasSize(2);
+        assertThat(order.reservedUntil()).isNull();
+    }
+
+    @Test
+    void createComplimentary_withEmptyTicketIds_throwsInvalidOrderException() {
+        assertThatThrownBy(() -> Order.createComplimentary(EVENT_ID, CUSTOMER_ID, 2, List.of()))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("ticket IDs");
+    }
+
+    @Test
+    void createComplimentary_withNullEventId_throwsInvalidOrderException() {
+        assertThatThrownBy(() -> Order.createComplimentary(null, CUSTOMER_ID, 1,
+                List.of(TicketId.generate())))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Event ID");
+    }
 }

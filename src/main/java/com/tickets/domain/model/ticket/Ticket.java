@@ -161,6 +161,25 @@ public final class Ticket {
                 null, null, null, version + 1);
     }
 
+    /**
+     * Grants this ticket as complimentary by transitioning to
+     * {@link TicketStatus#COMPLIMENTARY} and setting the associated
+     * order and customer IDs.
+     *
+     * @param orderId    the order ID granting the complimentary ticket
+     * @param customerId the customer ID receiving the complimentary ticket
+     * @return a new {@link Ticket} in COMPLIMENTARY status
+     * @throws InvalidTicketException if the ticket is not in AVAILABLE status
+     */
+    public Ticket grantComplimentary(String orderId, String customerId) {
+        if (!canTransitionTo(TicketStatus.COMPLIMENTARY)) {
+            throw new InvalidTicketException(
+                    "Cannot grant complimentary ticket in status " + status);
+        }
+        return new Ticket(id, eventId, TicketStatus.COMPLIMENTARY, seatNumber,
+                orderId, customerId, null, version + 1);
+    }
+
     public TicketId id() {
         return id;
     }
