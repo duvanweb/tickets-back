@@ -52,4 +52,19 @@ class TicketPersistenceAdapterTest {
 
         verify(dynamoDbRepository).findById(id);
     }
+
+    @Test
+    void findAvailableByEvent_delegatesToDynamoDb() {
+        EventId eventId = EventId.generate();
+        List<Ticket> tickets = List.of(
+                Ticket.create(eventId, "1"),
+                Ticket.create(eventId, "2"));
+        when(dynamoDbRepository.findAvailableByEvent(eventId, 5)).thenReturn(Flux.fromIterable(tickets));
+
+        StepVerifier.create(adapter.findAvailableByEvent(eventId, 5))
+                .expectNextCount(2)
+                .verifyComplete();
+
+        verify(dynamoDbRepository).findAvailableByEvent(eventId, 5);
+    }
 }

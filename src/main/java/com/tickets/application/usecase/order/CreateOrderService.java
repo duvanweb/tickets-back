@@ -33,11 +33,12 @@ public final class CreateOrderService implements CreateOrderUseCase {
     }
 
     private String serializePayload(Order order) {
-        return "{\"orderId\":\"" + order.id().value() + "\""
+        String payload = "{\"orderId\":\"" + order.id().value() + "\""
                 + ",\"eventId\":\"" + order.eventId().value() + "\""
                 + ",\"customerId\":\"" + order.customerId() + "\""
                 + ",\"quantity\":" + order.quantity()
                 + ",\"status\":\"" + order.status() + "\""
                 + ",\"createdAt\":\"" + order.createdAt() + "\"}";
+        return "{\"type\":\"order-created\",\"payload\":" + payload + "}";
     }
 }

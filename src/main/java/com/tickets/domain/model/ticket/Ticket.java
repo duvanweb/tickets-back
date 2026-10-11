@@ -108,6 +108,25 @@ public final class Ticket {
                 reservedUntil, version + 1);
     }
 
+    /**
+     * Reserves this ticket by transitioning to {@link TicketStatus#RESERVED} and setting
+     * the associated order ID, customer ID, and reservation deadline.
+     *
+     * @param orderId      the order ID claiming this ticket
+     * @param customerId   the customer ID claiming this ticket
+     * @param reservedUntil the reservation TTL deadline
+     * @return a new {@link Ticket} in RESERVED status with the given associations
+     * @throws InvalidTicketException if the transition is not valid
+     */
+    public Ticket reserve(String orderId, String customerId, LocalDateTime reservedUntil) {
+        if (!canTransitionTo(TicketStatus.RESERVED)) {
+            throw new InvalidTicketException(
+                    "Cannot transition from " + status + " to RESERVED");
+        }
+        return new Ticket(id, eventId, TicketStatus.RESERVED, seatNumber, orderId,
+                customerId, reservedUntil, version + 1);
+    }
+
     public TicketId id() {
         return id;
     }

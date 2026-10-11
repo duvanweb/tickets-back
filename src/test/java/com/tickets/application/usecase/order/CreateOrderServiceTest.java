@@ -50,6 +50,31 @@ class CreateOrderServiceTest {
     }
 
     @Test
+    void create_publishesMessageWithTypeAndPayloadWrapper() {
+        CreateOrderCommand command = new CreateOrderCommand(
+                EventId.generate(), "customer-123", 3);
+
+        Order savedOrder = Order.create(command.eventId(), command.customerId(), command.quantity());
+        when(repository.save(any(Order.class))).thenReturn(Mono.just(savedOrder));
+
+        java.util.concurrent.atomic.AtomicReference<String> publishedMessage = new java.util.concurrent.atomic.AtomicReference<>();
+        when(messagePublisher.publish(anyString())).thenAnswer(inv -> {
+            publishedMessage.set(inv.getArgument(0));
+            return Mono.empty();
+        });
+
+        StepVerifier.create(service.create(command))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        String message = publishedMessage.get();
+        org.assertj.core.api.Assertions.assertThat(message).contains("\"type\":\"order-created\"");
+        org.assertj.core.api.Assertions.assertThat(message).contains("\"payload\":");
+        org.assertj.core.api.Assertions.assertThat(message).contains("\"orderId\":\"");
+        org.assertj.core.api.Assertions.assertThat(message).contains("\"quantity\":3");
+    }
+
+    @Test
     void create_whenRepositoryFails_propagatesError() {
         CreateOrderCommand command = new CreateOrderCommand(
                 EventId.generate(), "customer-123", 3);
