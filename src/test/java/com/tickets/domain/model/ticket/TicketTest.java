@@ -151,6 +151,32 @@ class TicketTest {
     }
 
     @Test
+    void release_withReservedTicket_returnsAvailableTicketWithClearedAssociations() {
+        TicketId id = TicketId.generate();
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(10);
+        Ticket reserved = Ticket.reconstitute(id, EVENT_ID, TicketStatus.RESERVED, SEAT_NUMBER,
+                "order-123", "customer-456", reservedUntil, 1);
+
+        Ticket released = reserved.release();
+
+        assertThat(released.status()).isEqualTo(TicketStatus.AVAILABLE);
+        assertThat(released.orderId()).isNull();
+        assertThat(released.customerId()).isNull();
+        assertThat(released.reservedUntil()).isNull();
+        assertThat(released.version()).isEqualTo(2);
+        assertThat(released.id()).isEqualTo(id);
+    }
+
+    @Test
+    void release_withAvailableTicket_throwsInvalidTicketException() {
+        Ticket available = Ticket.create(EVENT_ID, SEAT_NUMBER);
+
+        assertThatThrownBy(available::release)
+                .isInstanceOf(InvalidTicketException.class)
+                .hasMessageContaining("Cannot release");
+    }
+
+    @Test
     void ticketsWithSameId_areEqual() {
         TicketId id = TicketId.generate();
         Ticket ticket1 = Ticket.reconstitute(id, EVENT_ID, TicketStatus.AVAILABLE, "A1",

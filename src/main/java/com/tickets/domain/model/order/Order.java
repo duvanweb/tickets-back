@@ -200,6 +200,21 @@ public final class Order {
                 createdAt, reservedUntil, ticketIds);
     }
 
+    /**
+     * Expires this order by transitioning to {@link OrderStatus#EXPIRED}.
+     *
+     * @return a new {@link Order} in EXPIRED status
+     * @throws InvalidOrderException if the transition is not valid
+     */
+    public Order expire() {
+        if (!canTransitionTo(OrderStatus.EXPIRED)) {
+            throw new InvalidOrderException(
+                    "Cannot expire order in status " + status);
+        }
+        return new Order(id, eventId, customerId, quantity, OrderStatus.EXPIRED,
+                createdAt, reservedUntil, ticketIds);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

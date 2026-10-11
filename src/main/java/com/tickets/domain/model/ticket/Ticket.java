@@ -145,6 +145,22 @@ public final class Ticket {
                 customerId, null, version + 2);
     }
 
+    /**
+     * Releases this ticket by transitioning back to {@link TicketStatus#AVAILABLE}
+     * and clearing the order/customer associations and reservation deadline.
+     *
+     * @return a new {@link Ticket} in AVAILABLE status
+     * @throws InvalidTicketException if the ticket is not in RESERVED status
+     */
+    public Ticket release() {
+        if (!canTransitionTo(TicketStatus.AVAILABLE)) {
+            throw new InvalidTicketException(
+                    "Cannot release ticket in status " + status);
+        }
+        return new Ticket(id, eventId, TicketStatus.AVAILABLE, seatNumber,
+                null, null, null, version + 1);
+    }
+
     public TicketId id() {
         return id;
     }

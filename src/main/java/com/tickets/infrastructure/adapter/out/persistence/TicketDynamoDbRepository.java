@@ -4,6 +4,8 @@ import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.ticket.Ticket;
 import com.tickets.domain.model.ticket.TicketId;
 import com.tickets.domain.model.ticket.TicketStatus;
+
+import java.time.LocalDateTime;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
 import com.tickets.infrastructure.adapter.out.persistence.mapper.TicketPersistenceMapper;
 import org.springframework.stereotype.Component;
@@ -115,6 +117,33 @@ public class TicketDynamoDbRepository {
                             .stream()
                             .flatMap(page -> page.items().stream())
                             .limit(limit)
+                            .map(TicketPersistenceMapper::toDomain)
+                            .toList();
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
+    }
+
+    /**
+     * Finds tickets with RESERVED status whose reservation deadline has passed.
+     *
+     * @param cutoff the cutoff timestamp
+     * @return a {@link Flux} emitting expired reserved tickets
+     */
+    public Flux<Ticket> findExpiredReservations(LocalDateTime cutoff) {
+        return Mono.fromCallable(() -> {
+                    DynamoDbIndex<TicketEntity> index =
+                            ticketTable.index("status-reservedUntil-index");
+                    QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                            .queryConditional(QueryConditional.sortLessThan(Key.builder()
+                                    .partitionValue(TicketStatus.RESERVED.name())
+                                    .sortValue(cutoff.toString())
+                                    .build()))
+                            .build();
+
+                    return index.query(queryRequest)
+                            .stream()
+                            .flatMap(page -> page.items().stream())
                             .map(TicketPersistenceMapper::toDomain)
                             .toList();
                 })

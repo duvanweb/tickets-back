@@ -7,6 +7,7 @@ import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
+import com.tickets.application.port.in.order.ReleaseExpiredReservationsUseCase;
 import com.tickets.application.port.out.publishers.MessagePublisher;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
@@ -18,6 +19,7 @@ import com.tickets.application.usecase.order.ConfirmOrderService;
 import com.tickets.application.usecase.order.CreateOrderService;
 import com.tickets.application.usecase.order.GetOrderService;
 import com.tickets.application.usecase.order.ProcessOrderService;
+import com.tickets.application.usecase.order.ReleaseExpiredReservationsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -70,5 +72,13 @@ public class UseCaseConfiguration {
                                                     TicketRepository ticketRepository,
                                                     EventRepository eventRepository) {
         return new ConfirmOrderService(orderRepository, ticketRepository, eventRepository);
+    }
+
+    @Bean
+    public ReleaseExpiredReservationsUseCase releaseExpiredReservationsUseCase(
+            TicketRepository ticketRepository,
+            EventRepository eventRepository,
+            OrderRepository orderRepository) {
+        return new ReleaseExpiredReservationsService(ticketRepository, eventRepository, orderRepository);
     }
 }
