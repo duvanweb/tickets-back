@@ -2,7 +2,9 @@ package com.tickets.application.usecase;
 
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
+import com.tickets.application.port.out.repositories.ReservationResult;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketReservationRepository;
 import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.application.usecase.event.EventAvailability;
 import com.tickets.application.usecase.event.GetAvailabilityService;
@@ -56,9 +58,12 @@ class TicketLifecycleIntegrationTest {
         InMemoryTicketRepository ticketRepo = new InMemoryTicketRepository(tickets);
         InMemoryOrderRepository orderRepo = new InMemoryOrderRepository();
         InMemoryTransitionRepository transitionRepo = new InMemoryTransitionRepository();
+        InMemoryTicketReservationRepository reservationRepo = new InMemoryTicketReservationRepository(
+                ticketRepo, eventRepo);
 
         GetAvailabilityService availabilityService = new GetAvailabilityService(eventRepo);
-        ProcessOrderService processService = new ProcessOrderService(orderRepo, ticketRepo, eventRepo, transitionRepo);
+        ProcessOrderService processService = new ProcessOrderService(
+                orderRepo, ticketRepo, eventRepo, transitionRepo, reservationRepo);
         ConfirmOrderService confirmService = new ConfirmOrderService(orderRepo, ticketRepo, eventRepo, transitionRepo);
 
         // 1. Check availability — all tickets available
@@ -142,7 +147,7 @@ class TicketLifecycleIntegrationTest {
         assertThat(availability.complimentary()).isEqualTo(2);
     }
 
-    // ─── In-memory repositories (shared with concurrency test) ─────────
+    // ─── In-memory repositories ─────────────────────────────────────────
 
     private static final class InMemoryEventRepository implements EventRepository {
         private Event event;
@@ -166,6 +171,20 @@ class TicketLifecycleIntegrationTest {
 
         @Override
         public Mono<Boolean> existsByName(String name) { return Mono.just(false); }
+
+        Event getEvent() {
+            synchronized (lock) { return this.event; }
+        }
+
+        boolean tryReserve(int quantity) {
+            synchronized (lock) {
+                if (this.event.available() >= quantity) {
+                    this.event = this.event.reserve(quantity);
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 
     private static final class InMemoryTicketRepository implements TicketRepository {
@@ -199,6 +218,50 @@ class TicketLifecycleIntegrationTest {
         @Override
         public Flux<Ticket> findExpiredReservations(LocalDateTime cutoff) {
             return Flux.empty();
+        }
+
+        Ticket getTicket(TicketId id) {
+            return tickets.get(id);
+        }
+
+        void putTicket(Ticket ticket) {
+            tickets.put(ticket.id(), ticket);
+        }
+    }
+
+    private static final class InMemoryTicketReservationRepository implements TicketReservationRepository {
+        private final InMemoryTicketRepository ticketRepo;
+        private final InMemoryEventRepository eventRepo;
+        private final Object txLock = new Object();
+
+        InMemoryTicketReservationRepository(InMemoryTicketRepository ticketRepo,
+                                             InMemoryEventRepository eventRepo) {
+            this.ticketRepo = ticketRepo;
+            this.eventRepo = eventRepo;
+        }
+
+        @Override
+        public Mono<ReservationResult> reserveTicketsAtomically(EventId eventId,
+                                                                 int quantity,
+                                                                 List<Ticket> reservedTickets) {
+            return Mono.fromCallable(() -> {
+                synchronized (txLock) {
+                    if (!eventRepo.tryReserve(quantity)) {
+                        return new ReservationResult.EventConditionFailed();
+                    }
+                    for (Ticket reserved : reservedTickets) {
+                        Ticket current = ticketRepo.getTicket(reserved.id());
+                        if (current == null || current.status() != TicketStatus.AVAILABLE) {
+                            eventRepo.save(eventRepo.getEvent().release(quantity));
+                            return new ReservationResult.TicketConditionFailed();
+                        }
+                    }
+                    for (Ticket reserved : reservedTickets) {
+                        ticketRepo.putTicket(reserved);
+                    }
+                    return new ReservationResult.Success();
+                }
+            });
         }
     }
 

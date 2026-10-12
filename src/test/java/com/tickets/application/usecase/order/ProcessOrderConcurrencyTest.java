@@ -2,7 +2,9 @@ package com.tickets.application.usecase.order;
 
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
+import com.tickets.application.port.out.repositories.ReservationResult;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketReservationRepository;
 import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
@@ -34,11 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Concurrency test for {@link ProcessOrderService} — the decisive test that verifies
  * no overselling under concurrent access.
  *
- * <p>Uses thread-safe in-memory repository implementations to simulate DynamoDB's
- * atomic conditional writes. The {@code InMemoryTicketRepository.findAvailableByEvent}
- * atomically finds and claims tickets (marks them RESERVED in the map) to prevent
- * two threads from reserving the same ticket. Fires N concurrent order requests
- * for M &lt; N tickets and verifies exactly M succeed (RESERVED) and N−M fail (REJECTED).</p>
+ * <p>Uses a thread-safe in-memory {@link TicketReservationRepository} that simulates
+ * DynamoDB TransactWriteItems atomic conditional writes. Fires N concurrent order
+ * requests for M &lt; N tickets and verifies exactly M succeed (RESERVED) and
+ * N−M fail (REJECTED).</p>
  */
 class ProcessOrderConcurrencyTest {
 
@@ -58,8 +59,11 @@ class ProcessOrderConcurrencyTest {
         InMemoryTicketRepository ticketRepo = new InMemoryTicketRepository(tickets);
         InMemoryOrderRepository orderRepo = new InMemoryOrderRepository();
         NoOpTransitionRepository transitionRepo = new NoOpTransitionRepository();
+        InMemoryTicketReservationRepository reservationRepo = new InMemoryTicketReservationRepository(
+                ticketRepo, eventRepo);
 
-        ProcessOrderService service = new ProcessOrderService(orderRepo, ticketRepo, eventRepo, transitionRepo);
+        ProcessOrderService service = new ProcessOrderService(
+                orderRepo, ticketRepo, eventRepo, transitionRepo, reservationRepo);
 
         List<ProcessOrderCommand> commands = java.util.stream.IntStream.range(0, concurrentOrders)
                 .mapToObj(i -> {
@@ -115,8 +119,11 @@ class ProcessOrderConcurrencyTest {
         InMemoryTicketRepository ticketRepo = new InMemoryTicketRepository(tickets);
         InMemoryOrderRepository orderRepo = new InMemoryOrderRepository();
         NoOpTransitionRepository transitionRepo = new NoOpTransitionRepository();
+        InMemoryTicketReservationRepository reservationRepo = new InMemoryTicketReservationRepository(
+                ticketRepo, eventRepo);
 
-        ProcessOrderService service = new ProcessOrderService(orderRepo, ticketRepo, eventRepo, transitionRepo);
+        ProcessOrderService service = new ProcessOrderService(
+                orderRepo, ticketRepo, eventRepo, transitionRepo, reservationRepo);
 
         List<ProcessOrderCommand> commands = java.util.stream.IntStream.range(0, concurrentOrders)
                 .mapToObj(i -> {
@@ -176,17 +183,24 @@ class ProcessOrderConcurrencyTest {
 
         @Override
         public Mono<Boolean> existsByName(String name) { return Mono.just(false); }
+
+        Event getEvent() {
+            synchronized (lock) { return this.event; }
+        }
+
+        boolean tryReserve(int quantity) {
+            synchronized (lock) {
+                if (this.event.available() >= quantity) {
+                    this.event = this.event.reserve(quantity);
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 
-    /**
-     * Thread-safe in-memory ticket repository that simulates DynamoDB atomic
-     * conditional writes. {@code findAvailableByEvent} atomically finds and
-     * claims tickets by marking them RESERVED in the map, preventing two
-     * threads from reserving the same ticket.
-     */
     private static final class InMemoryTicketRepository implements TicketRepository {
         private final Map<TicketId, Ticket> tickets = new ConcurrentHashMap<>();
-        private final Object claimLock = new Object();
 
         InMemoryTicketRepository(List<Ticket> initialTickets) {
             initialTickets.forEach(t -> tickets.put(t.id(), t));
@@ -205,19 +219,12 @@ class ProcessOrderConcurrencyTest {
 
         @Override
         public Flux<Ticket> findAvailableByEvent(EventId eventId, int limit) {
-            synchronized (claimLock) {
-                List<Ticket> available = tickets.values().stream()
-                        .filter(t -> t.eventId().equals(eventId))
-                        .filter(t -> t.status() == TicketStatus.AVAILABLE)
-                        .limit(limit)
-                        .collect(Collectors.toList());
-                // Atomically claim tickets by marking them RESERVED in the map,
-                // simulating DynamoDB TransactWriteItems conditional update
-                for (Ticket t : available) {
-                    tickets.put(t.id(), t.transitionTo(TicketStatus.RESERVED));
-                }
-                return Flux.fromIterable(available);
-            }
+            List<Ticket> available = tickets.values().stream()
+                    .filter(t -> t.eventId().equals(eventId))
+                    .filter(t -> t.status() == TicketStatus.AVAILABLE)
+                    .limit(limit)
+                    .collect(Collectors.toList());
+            return Flux.fromIterable(available);
         }
 
         @Override
@@ -230,6 +237,65 @@ class ProcessOrderConcurrencyTest {
                     .filter(t -> t.eventId().equals(eventId))
                     .filter(t -> t.status() == TicketStatus.AVAILABLE)
                     .count();
+        }
+
+        Ticket getTicket(TicketId id) {
+            return tickets.get(id);
+        }
+
+        void putTicket(Ticket ticket) {
+            tickets.put(ticket.id(), ticket);
+        }
+    }
+
+    /**
+     * Thread-safe in-memory reservation repository that simulates DynamoDB
+     * TransactWriteItems atomic conditional writes.
+     *
+     * <p>Atomically checks all conditions (event available >= qty AND each ticket
+     * status = AVAILABLE) and applies all updates in a single synchronized block.
+     * If any condition fails, no changes are applied.</p>
+     */
+    private static final class InMemoryTicketReservationRepository implements TicketReservationRepository {
+        private final InMemoryTicketRepository ticketRepo;
+        private final InMemoryEventRepository eventRepo;
+        private final Object txLock = new Object();
+
+        InMemoryTicketReservationRepository(InMemoryTicketRepository ticketRepo,
+                                             InMemoryEventRepository eventRepo) {
+            this.ticketRepo = ticketRepo;
+            this.eventRepo = eventRepo;
+        }
+
+        @Override
+        public Mono<ReservationResult> reserveTicketsAtomically(EventId eventId,
+                                                                 int quantity,
+                                                                 List<Ticket> reservedTickets) {
+            return Mono.fromCallable(() -> {
+                synchronized (txLock) {
+                    // Check Event condition: available >= qty
+                    if (!eventRepo.tryReserve(quantity)) {
+                        return new ReservationResult.EventConditionFailed();
+                    }
+
+                    // Check Ticket conditions: each ticket must be AVAILABLE
+                    for (Ticket reserved : reservedTickets) {
+                        Ticket current = ticketRepo.getTicket(reserved.id());
+                        if (current == null || current.status() != TicketStatus.AVAILABLE) {
+                            // Rollback event counter update
+                            eventRepo.save(eventRepo.getEvent().release(quantity));
+                            return new ReservationResult.TicketConditionFailed();
+                        }
+                    }
+
+                    // All conditions passed — apply ticket updates
+                    for (Ticket reserved : reservedTickets) {
+                        ticketRepo.putTicket(reserved);
+                    }
+
+                    return new ReservationResult.Success();
+                }
+            });
         }
     }
 
