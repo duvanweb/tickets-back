@@ -10,8 +10,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.test.StepVerifier;
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -71,6 +78,29 @@ class OrderDynamoDbRepositoryTest {
         when(orderTable.getItem(any(Key.class))).thenReturn(null);
 
         StepVerifier.create(repository.findById(id))
+                .verifyComplete();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void findByEventId_returnsOrdersForEvent() {
+        EventId eventId = EventId.generate();
+        OrderEntity entity1 = buildEntity(OrderId.generate().value().toString());
+        entity1.setEventId(eventId.value().toString());
+        OrderEntity entity2 = buildEntity(OrderId.generate().value().toString());
+        entity2.setEventId(eventId.value().toString());
+
+        DynamoDbIndex<OrderEntity> index = mock(DynamoDbIndex.class);
+        SdkIterable<Page<OrderEntity>> sdkIterable = mock(SdkIterable.class);
+        Page<OrderEntity> page = mock(Page.class);
+
+        when(orderTable.index("event-index")).thenReturn(index);
+        when(index.query(any(QueryEnhancedRequest.class))).thenReturn(sdkIterable);
+        when(sdkIterable.stream()).thenReturn(Stream.of(page));
+        when(page.items()).thenReturn(List.of(entity1, entity2));
+
+        StepVerifier.create(repository.findByEventId(eventId))
+                .expectNextCount(2)
                 .verifyComplete();
     }
 }

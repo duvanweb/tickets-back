@@ -1,14 +1,19 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderId;
 import com.tickets.infrastructure.adapter.out.persistence.entity.OrderEntity;
 import com.tickets.infrastructure.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
 /**
  * DynamoDB operations for {@link Order} using the Enhanced Client.
@@ -54,5 +59,31 @@ public class OrderDynamoDbRepository {
                     return entity != null ? OrderPersistenceMapper.toDomain(entity) : null;
                 })
                 .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Finds all orders for a given event using the {@code event-index} GSI.
+     *
+     * @param eventId the event ID
+     * @return a {@link Flux} emitting all orders for the event
+     */
+    public Flux<Order> findByEventId(EventId eventId) {
+        return Mono.fromCallable(() -> {
+                    DynamoDbIndex<OrderEntity> index =
+                            orderTable.index("event-index");
+                    QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                            .queryConditional(QueryConditional.keyEqualTo(Key.builder()
+                                    .partitionValue(eventId.value().toString())
+                                    .build()))
+                            .build();
+
+                    return index.query(queryRequest)
+                            .stream()
+                            .flatMap(page -> page.items().stream())
+                            .map(OrderPersistenceMapper::toDomain)
+                            .toList();
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(Flux::fromIterable);
     }
 }

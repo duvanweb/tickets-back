@@ -1,9 +1,11 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
 import com.tickets.application.port.out.repositories.OrderRepository;
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderId;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -27,5 +29,10 @@ public class OrderPersistenceAdapter implements OrderRepository {
     @Override
     public Mono<Order> findById(OrderId id) {
         return dynamoDbRepository.findById(id);
+    }
+
+    @Override
+    public Flux<Order> findByEventId(EventId eventId) {
+        return dynamoDbRepository.findByEventId(eventId);
     }
 }
