@@ -574,20 +574,156 @@ Cliente                API (WebFlux)              SQS              Worker
    └────────────────────────────────── (liberar: scheduler / fallo)
 ```
 
-### Tablas DynamoDB y GSIs
+### Diagrama de base de datos (DynamoDB)
+
+El sistema usa 4 tablas en DynamoDB con `BillingMode.PAY_PER_REQUEST` (on-demand).
+Las tablas se crean automáticamente al arrancar la aplicación (`CommandLineRunner` en `DynamoDbConfig`).
+
+#### Tabla `events`
+
+Almacena los eventos y sus **contadores O(1)** de inventario.
 
 ```
-events (PK: eventId)
-  └── GSI name-index (name)
+┌─────────────────────────────────────────────────────────────────┐
+│                          events                                 │
+├─────────────────┬──────────┬───────────────────────────────────┤
+│ Atributo        │ Tipo     │ Rol                               │
+├─────────────────┼──────────┼───────────────────────────────────┤
+│ eventId    🔑   │ String   │ Partition Key (PK)                │
+│ name            │ String   │ GSI: name-index (HASH)            │
+│ eventDate       │ String   │                                   │
+│ place           │ String   │                                   │
+│ totalCapacity   │ Number   │ Capacidad total del evento        │
+│ available       │ Number   │ Contador: entradas disponibles    │
+│ reserved        │ Number   │ Contador: entradas reservadas     │
+│ sold            │ Number   │ Contador: entradas vendidas       │
+│ complimentary   │ Number   │ Contador: entradas de cortesía    │
+└─────────────────┴──────────┴───────────────────────────────────┘
 
-tickets (PK: ticketId)
-  ├── GSI event-status-index (eventId + status)        ← reservas por evento
-  └── GSI status-reservedUntil-index (status + reservedUntil) ← scheduler
+GSI name-index: name (HASH)
+  → Búsqueda por nombre (validación de duplicados)
+```
 
-orders (PK: orderId)
+#### Tabla `tickets`
 
-ticket_transitions (PK: transitionId)
-  └── GSI ticket-id-index (ticketId + timestamp)       ← historial por entrada
+Una fila por entrada. Da estado individual, auditoría y permite reservas atómicas.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                              tickets                                 │
+├──────────────────┬──────────┬───────────────────────────────────────┤
+│ Atributo         │ Tipo     │ Rol                                   │
+├──────────────────┼──────────┼───────────────────────────────────────┤
+│ ticketId    🔑   │ String   │ Partition Key (PK)                    │
+│ eventId          │ String   │ GSI event-status-index (HASH)         │
+│ status           │ String   │ GSI event-status-index (RANGE)        │
+│                  │          │ GSI status-reservedUntil-index (HASH) │
+│ seatNumber       │ String   │                                       │
+│ orderId          │ String   │ Orden que reservó/compró la entrada   │
+│ customerId       │ String   │ Cliente que posee la entrada           │
+│ reservedUntil    │ String   │ GSI status-reservedUntil-index (RANGE)│
+│ version          │ Number   │ Optimistic locking (concurrencia)     │
+└──────────────────┴──────────┴───────────────────────────────────────┘
+
+GSI event-status-index: eventId (HASH) + status (RANGE)
+  → Query: "dame N entradas AVAILABLE del evento X" (reserva atómica)
+
+GSI status-reservedUntil-index: status (HASH) + reservedUntil (RANGE)
+  → Query: "dame entradas RESERVED con reservedUntil < ahora" (scheduler)
+```
+
+#### Tabla `orders`
+
+Almacena las órdenes de compra. Sin GSIs (acceso siempre por `orderId`).
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                            orders                                │
+├─────────────────┬──────────┬───────────────────────────────────┤
+│ Atributo        │ Tipo     │ Rol                               │
+├─────────────────┼──────────┼───────────────────────────────────┤
+│ orderId    🔑   │ String   │ Partition Key (PK)                │
+│ eventId         │ String   │ Evento de la orden                │
+│ customerId      │ String   │ Cliente que creó la orden         │
+│ quantity        │ Number   │ Cantidad de entradas solicitadas  │
+│ status          │ String   │ PENDING → RESERVED → SOLD, etc.   │
+│ createdAt       │ String   │ Timestamp de creación             │
+│ reservedUntil   │ String   │ TTL de la reserva (10 min)        │
+│ ticketIds       │ List     │ IDs de entradas reservadas        │
+└─────────────────┴──────────┴───────────────────────────────────┘
+
+Sin GSIs — acceso siempre por PK (orderId)
+```
+
+#### Tabla `ticket_transitions`
+
+Auditoría: cada cambio de estado de un `Ticket` genera una fila.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       ticket_transitions                         │
+├─────────────────┬──────────┬───────────────────────────────────┤
+│ Atributo        │ Tipo     │ Rol                               │
+├─────────────────┼──────────┼───────────────────────────────────┤
+│ transitionId 🔑 │ String   │ Partition Key (PK)                │
+│ ticketId        │ String   │ GSI ticket-id-index (HASH)        │
+│ fromStatus      │ String   │ Estado anterior                   │
+│ toStatus        │ String   │ Estado nuevo                      │
+│ orderId         │ String   │ Orden que触发ó la transición      │
+│ timestamp       │ String   │ GSI ticket-id-index (RANGE)       │
+└─────────────────┴──────────┴───────────────────────────────────┘
+
+GSI ticket-id-index: ticketId (HASH) + timestamp (RANGE)
+  → Query: "historial completo de la entrada X, cronológico"
+```
+
+#### Relaciones lógicas entre tablas
+
+DynamoDB no tiene foreign keys — las relaciones son lógicas (por ID compartido):
+
+```
+events ◄─────────────► tickets
+  eventId                eventId (GSI event-status-index)
+  available/reserved/    status (AVAILABLE/RESERVED/SOLD/COMPLIMENTARY)
+  sold/complimentary     ← contadores = agregación O(1) de filas
+
+events ◄─────────────► orders
+  eventId                eventId (campo, sin GSI)
+
+orders ◄─────────────► tickets
+  orderId                orderId (campo en tickets)
+  ticketIds              List<String> de ticketId (campo en orders)
+
+tickets ◄────────────► ticket_transitions
+  ticketId               ticketId (GSI ticket-id-index)
+  status                 fromStatus → toStatus (auditoría)
+```
+
+#### Ejemplo de datos
+
+```
+events:
+  eventId: "evt-abc"  name: "Concierto Rock"  totalCapacity: 500
+  available: 497  reserved: 0  sold: 3  complimentary: 0
+
+tickets (3 filas de 500):
+  ticketId: "tkt-001"  eventId: "evt-abc"  status: SOLD
+  ticketId: "tkt-002"  eventId: "evt-abc"  status: SOLD
+  ticketId: "tkt-003"  eventId: "evt-abc"  status: SOLD
+  ticketId: "tkt-004"  eventId: "evt-abc"  status: AVAILABLE
+  ...
+
+orders:
+  orderId: "ord-xyz"  eventId: "evt-abc"  status: SOLD
+  quantity: 3  ticketIds: ["tkt-001","tkt-002","tkt-003"]
+
+ticket_transitions (6 filas para 3 tickets):
+  transitionId: "tr-1"  ticketId: "tkt-001"  AVAILABLE→RESERVED  orderId: "ord-xyz"
+  transitionId: "tr-2"  ticketId: "tkt-001"  RESERVED→SOLD       orderId: "ord-xyz"
+  transitionId: "tr-3"  ticketId: "tkt-002"  AVAILABLE→RESERVED  orderId: "ord-xyz"
+  transitionId: "tr-4"  ticketId: "tkt-002"  RESERVED→SOLD       orderId: "ord-xyz"
+  transitionId: "tr-5"  ticketId: "tkt-003"  AVAILABLE→RESERVED  orderId: "ord-xyz"
+  transitionId: "tr-6"  ticketId: "tkt-003"  RESERVED→SOLD       orderId: "ord-xyz"
 ```
 
 ---
