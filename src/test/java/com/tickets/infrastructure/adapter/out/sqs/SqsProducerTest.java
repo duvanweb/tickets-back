@@ -27,7 +27,8 @@ class SqsProducerTest {
     @BeforeEach
     void setUp() {
         AwsSqsProperties props = new AwsSqsProperties(
-                "us-east-1", "http://localhost:4566", "order-created-queue");
+                "us-east-1", "http://localhost:4566", "order-created-queue",
+                null, 10, 20, 1000);
         producer = new SqsProducer(sqsClient, props);
     }
 

@@ -1,7 +1,6 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
 import com.tickets.application.port.out.repositories.ReservationResult;
-import com.tickets.application.port.out.repositories.TicketReservationRepository;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.ticket.Ticket;
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
@@ -25,8 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * DynamoDB implementation of {@link TicketReservationRepository} using
- * low-level {@link DynamoDbClient#transactWriteItems} for atomic conditional writes.
+ * DynamoDB operations for ticket reservation using low-level
+ * {@link DynamoDbClient#transactWriteItems} for atomic conditional writes.
  *
  * <p>Uses the low-level client instead of the Enhanced Client's
  * {@code TransactWriteItemsEnhancedRequest} because the Enhanced Client
@@ -40,7 +39,7 @@ import java.util.Map;
  * the Netty event loop.</p>
  */
 @Component
-public class TicketReservationDynamoDbRepository implements TicketReservationRepository {
+public class TicketReservationDynamoDbRepository {
 
     private static final String EVENT_CONDITION_FAILED = "ConditionalCheckFailed";
 
@@ -56,7 +55,6 @@ public class TicketReservationDynamoDbRepository implements TicketReservationRep
         this.ticketTable = ticketTable;
     }
 
-    @Override
     public Mono<ReservationResult> reserveTicketsAtomically(EventId eventId,
                                                              int quantity,
                                                              List<Ticket> reservedTickets) {

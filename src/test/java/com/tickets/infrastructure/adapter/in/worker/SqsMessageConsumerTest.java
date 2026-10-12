@@ -1,7 +1,7 @@
 package com.tickets.infrastructure.adapter.in.worker;
 
 import tools.jackson.databind.json.JsonMapper;
-import com.tickets.infrastructure.config.SqsProperties;
+import com.tickets.infrastructure.config.AwsSqsProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,8 +23,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SqsMessageConsumerTest {
 
-    private static final SqsProperties PROPS = new SqsProperties(
+    private static final AwsSqsProperties PROPS = new AwsSqsProperties(
             "us-east-1", "http://localhost:4566",
+            "order-created-queue",
             "http://localhost:4566/000000000000/order-created-queue",
             10, 20, 1000);
 

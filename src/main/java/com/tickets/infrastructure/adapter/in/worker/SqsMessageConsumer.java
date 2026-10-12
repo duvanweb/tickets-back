@@ -2,7 +2,7 @@ package com.tickets.infrastructure.adapter.in.worker;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.tickets.infrastructure.config.SqsProperties;
+import com.tickets.infrastructure.config.AwsSqsProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -33,12 +33,12 @@ public class SqsMessageConsumer {
     private static final Logger log = LoggerFactory.getLogger(SqsMessageConsumer.class);
 
     private final SqsClient sqsClient;
-    private final SqsProperties properties;
+    private final AwsSqsProperties properties;
     private final ObjectMapper objectMapper;
     private final Map<String, MessageHandler> handlers;
 
     public SqsMessageConsumer(SqsClient sqsClient,
-                              SqsProperties properties,
+                              AwsSqsProperties properties,
                               ObjectMapper objectMapper,
                               java.util.List<MessageHandler> handlerList) {
         this.sqsClient = sqsClient;
