@@ -4,10 +4,15 @@ import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.OrderEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketTransitionEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
@@ -28,12 +33,16 @@ import java.net.URI;
 @EnableConfigurationProperties(AwsDynamoDbProperties.class)
 public class DynamoDbConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(DynamoDbConfig.class);
+
     @Bean
     public DynamoDbClient dynamoDbClient(AwsDynamoDbProperties props) {
         var builder = DynamoDbClient.builder()
                 .region(Region.of(props.region()));
         if (props.endpoint() != null && !props.endpoint().isBlank()) {
-            builder.endpointOverride(URI.create(props.endpoint()));
+            builder.endpointOverride(URI.create(props.endpoint()))
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create("local", "local")));
         }
         return builder.build();
     }
@@ -58,6 +67,7 @@ public class DynamoDbConfig {
     }
 
     @Bean
+    @Profile("!worker")
     public CommandLineRunner createTicketTable(DynamoDbClient client, AwsDynamoDbProperties props) {
         return args -> {
             try {
@@ -117,8 +127,11 @@ public class DynamoDbConfig {
                                         .build())
                         .billingMode(BillingMode.PAY_PER_REQUEST)
                         .build());
+                log.info("DynamoDB table '{}' created", props.tableName());
             } catch (ResourceInUseException ignored) {
-                // Table already exists — safe to ignore
+                log.debug("DynamoDB table '{}' already exists", props.tableName());
+            } catch (Exception e) {
+                log.warn("Failed to create DynamoDB table '{}': {}", props.tableName(), e.getMessage());
             }
         };
     }
@@ -130,6 +143,7 @@ public class DynamoDbConfig {
     }
 
     @Bean
+    @Profile("!worker")
     public CommandLineRunner createOrderTable(DynamoDbClient client, AwsDynamoDbProperties props) {
         return args -> {
             try {
@@ -146,13 +160,17 @@ public class DynamoDbConfig {
                                         .build())
                         .billingMode(BillingMode.PAY_PER_REQUEST)
                         .build());
+                log.info("DynamoDB table '{}' created", props.ordersTableName());
             } catch (ResourceInUseException ignored) {
-                // Table already exists — safe to ignore
+                log.debug("DynamoDB table '{}' already exists", props.ordersTableName());
+            } catch (Exception e) {
+                log.warn("Failed to create DynamoDB table '{}': {}", props.ordersTableName(), e.getMessage());
             }
         };
     }
 
     @Bean
+    @Profile("!worker")
     public CommandLineRunner createEventTable(DynamoDbClient client, AwsDynamoDbProperties props) {
         return args -> {
             try {
@@ -183,8 +201,11 @@ public class DynamoDbConfig {
                                 .build())
                         .billingMode(BillingMode.PAY_PER_REQUEST)
                         .build());
+                log.info("DynamoDB table '{}' created", props.eventsTableName());
             } catch (ResourceInUseException ignored) {
-                // Table already exists — safe to ignore
+                log.debug("DynamoDB table '{}' already exists", props.eventsTableName());
+            } catch (Exception e) {
+                log.warn("Failed to create DynamoDB table '{}': {}", props.eventsTableName(), e.getMessage());
             }
         };
     }
@@ -197,6 +218,7 @@ public class DynamoDbConfig {
     }
 
     @Bean
+    @Profile("!worker")
     public CommandLineRunner createTransitionTable(DynamoDbClient client, AwsDynamoDbProperties props) {
         return args -> {
             try {
@@ -236,8 +258,11 @@ public class DynamoDbConfig {
                                 .build())
                         .billingMode(BillingMode.PAY_PER_REQUEST)
                         .build());
+                log.info("DynamoDB table '{}' created", props.transitionsTableName());
             } catch (ResourceInUseException ignored) {
-                // Table already exists — safe to ignore
+                log.debug("DynamoDB table '{}' already exists", props.transitionsTableName());
+            } catch (Exception e) {
+                log.warn("Failed to create DynamoDB table '{}': {}", props.transitionsTableName(), e.getMessage());
             }
         };
     }
