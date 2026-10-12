@@ -38,4 +38,25 @@ public interface TicketReservationRepository {
     Mono<ReservationResult> reserveTicketsAtomically(EventId eventId,
                                                       int quantity,
                                                       List<Ticket> reservedTickets);
+
+    /**
+     * Atomically grants complimentary tickets and adjusts event counters.
+     *
+     * <p>Uses DynamoDB TransactWriteItems to atomically:
+     * <ul>
+     *   <li>Update Event counters: {@code available -= qty, complimentary += qty}
+     *       with condition {@code available >= :qty}</li>
+     *   <li>Put each Ticket with status COMPLIMENTARY
+     *       with condition {@code status = :available}</li>
+     * </ul></p>
+     *
+     * @param eventId             the event whose counters to adjust
+     * @param quantity            the number of tickets being granted
+     * @param complimentaryTickets the domain tickets already transitioned to COMPLIMENTARY
+     *                             (with orderId, customerId set)
+     * @return a {@link Mono} emitting the {@link ReservationResult}
+     */
+    Mono<ReservationResult> grantComplimentaryAtomically(EventId eventId,
+                                                         int quantity,
+                                                         List<Ticket> complimentaryTickets);
 }

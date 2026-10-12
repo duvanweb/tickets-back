@@ -298,6 +298,30 @@ class ProcessOrderConcurrencyTest {
                 }
             });
         }
+
+        @Override
+        public Mono<ReservationResult> grantComplimentaryAtomically(EventId eventId,
+                                                                    int quantity,
+                                                                    List<Ticket> complimentaryTickets) {
+            return Mono.fromCallable(() -> {
+                synchronized (txLock) {
+                    if (!eventRepo.tryReserve(quantity)) {
+                        return new ReservationResult.EventConditionFailed();
+                    }
+                    for (Ticket complimentary : complimentaryTickets) {
+                        Ticket current = ticketRepo.getTicket(complimentary.id());
+                        if (current == null || current.status() != TicketStatus.AVAILABLE) {
+                            eventRepo.save(eventRepo.getEvent().release(quantity));
+                            return new ReservationResult.TicketConditionFailed();
+                        }
+                    }
+                    for (Ticket complimentary : complimentaryTickets) {
+                        ticketRepo.putTicket(complimentary);
+                    }
+                    return new ReservationResult.Success();
+                }
+            });
+        }
     }
 
     private static final class InMemoryOrderRepository implements OrderRepository {
@@ -312,6 +336,12 @@ class ProcessOrderConcurrencyTest {
         @Override
         public Mono<Order> findById(OrderId id) {
             return Mono.justOrEmpty(orders.get(id));
+        }
+
+        @Override
+        public Flux<Order> findByEventId(EventId eventId) {
+            return Flux.fromStream(orders.values().stream()
+                    .filter(order -> order.eventId().equals(eventId)));
         }
 
         void store(Order order) { orders.put(order.id(), order); }
