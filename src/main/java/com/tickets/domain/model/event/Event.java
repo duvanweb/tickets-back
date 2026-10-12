@@ -89,6 +89,9 @@ public final class Event {
         if (date == null) {
             throw new InvalidEventException("Event date must not be null");
         }
+        if (date.isBefore(LocalDateTime.now())) {
+            throw new InvalidEventException("Event date must be in the future");
+        }
         if (place == null || place.isBlank()) {
             throw new InvalidEventException("Event place must not be blank");
         }
