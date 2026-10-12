@@ -98,8 +98,10 @@ public class EventDynamoDbRepository {
                             .build();
                     return eventTable.index("name-index")
                             .query(queryRequest)
-                            .iterator()
-                            .hasNext();
+                            .stream()
+                            .flatMap(page -> page.items().stream())
+                            .findFirst()
+                            .isPresent();
                 })
                 .subscribeOn(Schedulers.boundedElastic());
     }
