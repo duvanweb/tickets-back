@@ -14,6 +14,7 @@ import com.tickets.application.port.out.publishers.MessagePublisher;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.application.usecase.event.CreateEventService;
 import com.tickets.application.usecase.event.GetAvailabilityService;
 import com.tickets.application.usecase.event.GetEventService;
@@ -67,23 +68,26 @@ public class UseCaseConfiguration {
     @Bean
     public ProcessOrderUseCase processOrderUseCase(OrderRepository orderRepository,
                                                     TicketRepository ticketRepository,
-                                                    EventRepository eventRepository) {
-        return new ProcessOrderService(orderRepository, ticketRepository, eventRepository);
+                                                    EventRepository eventRepository,
+                                                    TicketTransitionRepository transitionRepository) {
+        return new ProcessOrderService(orderRepository, ticketRepository, eventRepository, transitionRepository);
     }
 
     @Bean
     public ConfirmOrderUseCase confirmOrderUseCase(OrderRepository orderRepository,
                                                     TicketRepository ticketRepository,
-                                                    EventRepository eventRepository) {
-        return new ConfirmOrderService(orderRepository, ticketRepository, eventRepository);
+                                                    EventRepository eventRepository,
+                                                    TicketTransitionRepository transitionRepository) {
+        return new ConfirmOrderService(orderRepository, ticketRepository, eventRepository, transitionRepository);
     }
 
     @Bean
     public ReleaseExpiredReservationsUseCase releaseExpiredReservationsUseCase(
             TicketRepository ticketRepository,
             EventRepository eventRepository,
-            OrderRepository orderRepository) {
-        return new ReleaseExpiredReservationsService(ticketRepository, eventRepository, orderRepository);
+            OrderRepository orderRepository,
+            TicketTransitionRepository transitionRepository) {
+        return new ReleaseExpiredReservationsService(ticketRepository, eventRepository, orderRepository, transitionRepository);
     }
 
     @Bean
@@ -95,7 +99,8 @@ public class UseCaseConfiguration {
     public GrantComplimentaryUseCase grantComplimentaryUseCase(
             TicketRepository ticketRepository,
             EventRepository eventRepository,
-            OrderRepository orderRepository) {
-        return new GrantComplimentaryService(ticketRepository, eventRepository, orderRepository);
+            OrderRepository orderRepository,
+            TicketTransitionRepository transitionRepository) {
+        return new GrantComplimentaryService(ticketRepository, eventRepository, orderRepository, transitionRepository);
     }
 }

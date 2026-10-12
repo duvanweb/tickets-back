@@ -18,6 +18,7 @@ aws:
     table-name: tickets
     events-table-name: events
     orders-table-name: orders
+    transitions-table-name: ticket_transitions
   sqs:
     region: us-east-1
     endpoint: http://localhost:4566   # LocalStack for local dev; remove in production

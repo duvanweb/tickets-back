@@ -3,6 +3,7 @@ package com.tickets.infrastructure.config;
 import com.tickets.infrastructure.adapter.out.persistence.entity.EventEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.OrderEntity;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketEntity;
+import com.tickets.infrastructure.adapter.out.persistence.entity.TicketTransitionEntity;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -176,6 +177,59 @@ public class DynamoDbConfig {
                                         .attributeName("name")
                                         .keyType(KeyType.HASH)
                                         .build())
+                                .projection(Projection.builder()
+                                        .projectionType(ProjectionType.ALL)
+                                        .build())
+                                .build())
+                        .billingMode(BillingMode.PAY_PER_REQUEST)
+                        .build());
+            } catch (ResourceInUseException ignored) {
+                // Table already exists — safe to ignore
+            }
+        };
+    }
+
+    @Bean
+    public DynamoDbTable<TicketTransitionEntity> transitionTable(DynamoDbEnhancedClient enhancedClient,
+                                                                  AwsDynamoDbProperties props) {
+        return enhancedClient.table(props.transitionsTableName(),
+                TableSchema.fromBean(TicketTransitionEntity.class));
+    }
+
+    @Bean
+    public CommandLineRunner createTransitionTable(DynamoDbClient client, AwsDynamoDbProperties props) {
+        return args -> {
+            try {
+                client.createTable(CreateTableRequest.builder()
+                        .tableName(props.transitionsTableName())
+                        .keySchema(KeySchemaElement.builder()
+                                .attributeName("transitionId")
+                                .keyType(KeyType.HASH)
+                                .build())
+                        .attributeDefinitions(
+                                AttributeDefinition.builder()
+                                        .attributeName("transitionId")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build(),
+                                AttributeDefinition.builder()
+                                        .attributeName("ticketId")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build(),
+                                AttributeDefinition.builder()
+                                        .attributeName("timestamp")
+                                        .attributeType(ScalarAttributeType.S)
+                                        .build())
+                        .globalSecondaryIndexes(GlobalSecondaryIndex.builder()
+                                .indexName("ticket-id-index")
+                                .keySchema(
+                                        KeySchemaElement.builder()
+                                                .attributeName("ticketId")
+                                                .keyType(KeyType.HASH)
+                                                .build(),
+                                        KeySchemaElement.builder()
+                                                .attributeName("timestamp")
+                                                .keyType(KeyType.RANGE)
+                                                .build())
                                 .projection(Projection.builder()
                                         .projectionType(ProjectionType.ALL)
                                         .build())

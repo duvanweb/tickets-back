@@ -4,10 +4,13 @@ import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.InvalidEventException;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.ticket.Ticket;
+import com.tickets.domain.model.ticket.TicketStatus;
+import com.tickets.domain.model.ticket.TicketTransition;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -24,13 +27,16 @@ public final class GrantComplimentaryService implements GrantComplimentaryUseCas
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
     private final OrderRepository orderRepository;
+    private final TicketTransitionRepository transitionRepository;
 
     public GrantComplimentaryService(TicketRepository ticketRepository,
                                      EventRepository eventRepository,
-                                     OrderRepository orderRepository) {
+                                     OrderRepository orderRepository,
+                                     TicketTransitionRepository transitionRepository) {
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
         this.orderRepository = orderRepository;
+        this.transitionRepository = transitionRepository;
     }
 
     @Override
@@ -63,7 +69,13 @@ public final class GrantComplimentaryService implements GrantComplimentaryUseCas
                 .map(ticket -> ticket.grantComplimentary(orderIdStr, command.customerId()))
                 .toList();
 
+        List<TicketTransition> transitions = selectedTickets.stream()
+                .map(ticket -> TicketTransition.create(ticket.id(),
+                        TicketStatus.AVAILABLE, TicketStatus.COMPLIMENTARY, orderIdStr))
+                .toList();
+
         return ticketRepository.saveAll(complimentaryTickets)
+                .then(transitionRepository.saveAll(transitions))
                 .then(updateEventCounters(command.eventId(), command.quantity()))
                 .then(orderRepository.save(complimentaryOrder));
     }

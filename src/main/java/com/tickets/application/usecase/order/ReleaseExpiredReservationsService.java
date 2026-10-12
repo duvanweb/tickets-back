@@ -4,10 +4,13 @@ import com.tickets.application.port.in.order.ReleaseExpiredReservationsUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderId;
 import com.tickets.domain.model.ticket.Ticket;
+import com.tickets.domain.model.ticket.TicketStatus;
+import com.tickets.domain.model.ticket.TicketTransition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -35,13 +38,16 @@ public final class ReleaseExpiredReservationsService implements ReleaseExpiredRe
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
     private final OrderRepository orderRepository;
+    private final TicketTransitionRepository transitionRepository;
 
     public ReleaseExpiredReservationsService(TicketRepository ticketRepository,
                                              EventRepository eventRepository,
-                                             OrderRepository orderRepository) {
+                                             OrderRepository orderRepository,
+                                             TicketTransitionRepository transitionRepository) {
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
         this.orderRepository = orderRepository;
+        this.transitionRepository = transitionRepository;
     }
 
     @Override
@@ -71,7 +77,13 @@ public final class ReleaseExpiredReservationsService implements ReleaseExpiredRe
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
+        List<TicketTransition> transitions = expiredTickets.stream()
+                .map(ticket -> TicketTransition.create(ticket.id(),
+                        TicketStatus.RESERVED, TicketStatus.AVAILABLE, ticket.orderId()))
+                .toList();
+
         return ticketRepository.saveAll(releasedTickets)
+                .then(transitionRepository.saveAll(transitions))
                 .then(updateEventCounters(byEvent))
                 .then(expireOrders(orderIds))
                 .then(Mono.just(expiredTickets.size()));

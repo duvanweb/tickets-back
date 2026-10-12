@@ -3,6 +3,7 @@ package com.tickets.application.usecase.order;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.InvalidOrderException;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.event.Event;
@@ -40,6 +41,9 @@ class ConfirmOrderServiceTest {
     @Mock
     private EventRepository eventRepository;
 
+    @Mock
+    private TicketTransitionRepository transitionRepository;
+
     @InjectMocks
     private ConfirmOrderService service;
 
@@ -70,6 +74,7 @@ class ConfirmOrderServiceTest {
         when(ticketRepository.findById(ticketId1)).thenReturn(Mono.just(ticket1));
         when(ticketRepository.findById(ticketId2)).thenReturn(Mono.just(ticket2));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.empty());
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(eventWithReserved));
         when(eventRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
         when(orderRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));

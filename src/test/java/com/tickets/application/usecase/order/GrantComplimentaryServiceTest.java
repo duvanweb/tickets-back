@@ -3,6 +3,7 @@ package com.tickets.application.usecase.order;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.InvalidEventException;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
@@ -39,6 +40,9 @@ class GrantComplimentaryServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private TicketTransitionRepository transitionRepository;
+
     @InjectMocks
     private GrantComplimentaryService service;
 
@@ -54,6 +58,7 @@ class GrantComplimentaryServiceTest {
         when(ticketRepository.findAvailableByEvent(eventId, 2))
                 .thenReturn(Flux.just(ticket1, ticket2));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.empty());
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
         when(eventRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
         when(orderRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
@@ -113,6 +118,7 @@ class GrantComplimentaryServiceTest {
         when(ticketRepository.findAvailableByEvent(eventId, 1))
                 .thenReturn(Flux.just(ticket1));
         when(ticketRepository.saveAll(any())).thenReturn(Flux.empty());
+        when(transitionRepository.saveAll(any())).thenReturn(Mono.empty());
         when(eventRepository.findById(eventId)).thenReturn(Mono.just(event));
         when(eventRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
         when(orderRepository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));

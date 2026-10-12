@@ -4,10 +4,13 @@ import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderId;
 import com.tickets.domain.model.ticket.Ticket;
+import com.tickets.domain.model.ticket.TicketStatus;
+import com.tickets.domain.model.ticket.TicketTransition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,13 +29,16 @@ public final class ConfirmOrderService implements ConfirmOrderUseCase {
     private final OrderRepository orderRepository;
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
+    private final TicketTransitionRepository transitionRepository;
 
     public ConfirmOrderService(OrderRepository orderRepository,
                                TicketRepository ticketRepository,
-                               EventRepository eventRepository) {
+                               EventRepository eventRepository,
+                               TicketTransitionRepository transitionRepository) {
         this.orderRepository = orderRepository;
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
+        this.transitionRepository = transitionRepository;
     }
 
     @Override
@@ -58,7 +64,14 @@ public final class ConfirmOrderService implements ConfirmOrderUseCase {
                 .map(Ticket::confirm)
                 .toList();
 
+        String orderIdStr = order.id().value().toString();
+        List<TicketTransition> transitions = tickets.stream()
+                .map(ticket -> TicketTransition.create(ticket.id(),
+                        TicketStatus.RESERVED, TicketStatus.SOLD, orderIdStr))
+                .toList();
+
         return ticketRepository.saveAll(soldTickets)
+                .then(transitionRepository.saveAll(transitions))
                 .then(updateEventCounters(order.eventId(), order.quantity()))
                 .then(orderRepository.save(confirmedOrder));
     }
