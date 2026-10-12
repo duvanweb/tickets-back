@@ -5,6 +5,7 @@ import com.tickets.application.port.in.event.GetAvailabilityUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
+import com.tickets.application.port.in.order.ListOrdersByEventUseCase;
 import com.tickets.application.port.in.event.CreateEventUseCase.CreateEventCommand;
 import com.tickets.application.usecase.event.model.EventAvailability;
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase.GrantComplimentaryCommand;
@@ -49,12 +50,16 @@ class EventControllerTest {
     @Mock
     private GrantComplimentaryUseCase grantComplimentaryUseCase;
 
+    @Mock
+    private ListOrdersByEventUseCase listOrdersByEventUseCase;
+
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
         EventController controller = new EventController(createEventUseCase, getEventUseCase,
-                listEventsUseCase, getAvailabilityUseCase, grantComplimentaryUseCase);
+                listEventsUseCase, getAvailabilityUseCase, grantComplimentaryUseCase,
+                listOrdersByEventUseCase);
         webTestClient = WebTestClient.bindToController(controller)
                 .controllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -255,5 +260,52 @@ class EventControllerTest {
                         {"customerId": "vip-customer", "quantity": 0}""")
                 .exchange()
                 .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void getOrdersByEvent_whenEventExists_returns200() {
+        EventId eventId = EventId.generate();
+        OrderId orderId1 = OrderId.generate();
+        OrderId orderId2 = OrderId.generate();
+        Order order1 = Order.reconstitute(orderId1, eventId, "customer-1", 2,
+                OrderStatus.SOLD, LocalDateTime.now(), null, List.of());
+        Order order2 = Order.reconstitute(orderId2, eventId, "customer-2", 3,
+                OrderStatus.PENDING, LocalDateTime.now(), null, List.of());
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.just(order1, order2));
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2)
+                .jsonPath("$[0].id").isEqualTo(orderId1.value().toString())
+                .jsonPath("$[0].eventId").isEqualTo(eventId.value().toString())
+                .jsonPath("$[0].customerId").isEqualTo("customer-1")
+                .jsonPath("$[1].id").isEqualTo(orderId2.value().toString())
+                .jsonPath("$[1].customerId").isEqualTo("customer-2");
+    }
+
+    @Test
+    void getOrdersByEvent_whenEventNotFound_returns404() {
+        EventId eventId = EventId.generate();
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.error(new EventNotFoundException("Event not found")));
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Event not found");
+    }
+
+    @Test
+    void getOrdersByEvent_whenNoOrders_returns200EmptyArray() {
+        EventId eventId = EventId.generate();
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.empty());
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(0);
     }
 }

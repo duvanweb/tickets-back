@@ -2,6 +2,7 @@ package com.tickets.infrastructure.adapter.out.persistence.entity;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 import java.util.List;
 
@@ -32,6 +33,7 @@ public class OrderEntity {
         this.orderId = orderId;
     }
 
+    @DynamoDbSecondaryPartitionKey(indexNames = "event-index")
     public String getEventId() {
         return eventId;
     }

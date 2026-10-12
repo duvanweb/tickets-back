@@ -132,7 +132,8 @@ class TicketLifecycleIntegrationTest {
 
         GetAvailabilityService availabilityService = new GetAvailabilityService(eventRepo);
         GrantComplimentaryService grantService = new GrantComplimentaryService(
-                ticketRepo, eventRepo, orderRepo, transitionRepo);
+                ticketRepo, orderRepo, transitionRepo,
+                new InMemoryTicketReservationRepository(ticketRepo, eventRepo));
 
         // Grant 2 complimentary tickets
         Order complimentaryOrder = grantService.grant(
@@ -183,6 +184,22 @@ class TicketLifecycleIntegrationTest {
                     return true;
                 }
                 return false;
+            }
+        }
+
+        boolean tryGrantComplimentary(int quantity) {
+            synchronized (lock) {
+                if (this.event.available() >= quantity) {
+                    this.event = this.event.grantComplimentary(quantity);
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        void restore(int quantity) {
+            synchronized (lock) {
+                this.event = this.event.release(quantity);
             }
         }
     }
@@ -263,6 +280,30 @@ class TicketLifecycleIntegrationTest {
                 }
             });
         }
+
+        @Override
+        public Mono<ReservationResult> grantComplimentaryAtomically(EventId eventId,
+                                                                    int quantity,
+                                                                    List<Ticket> complimentaryTickets) {
+            return Mono.fromCallable(() -> {
+                synchronized (txLock) {
+                    if (!eventRepo.tryGrantComplimentary(quantity)) {
+                        return new ReservationResult.EventConditionFailed();
+                    }
+                    for (Ticket complimentary : complimentaryTickets) {
+                        Ticket current = ticketRepo.getTicket(complimentary.id());
+                        if (current == null || current.status() != TicketStatus.AVAILABLE) {
+                            eventRepo.restore(quantity);
+                            return new ReservationResult.TicketConditionFailed();
+                        }
+                    }
+                    for (Ticket complimentary : complimentaryTickets) {
+                        ticketRepo.putTicket(complimentary);
+                    }
+                    return new ReservationResult.Success();
+                }
+            });
+        }
     }
 
     private static final class InMemoryOrderRepository implements OrderRepository {
@@ -277,6 +318,12 @@ class TicketLifecycleIntegrationTest {
         @Override
         public Mono<Order> findById(OrderId id) {
             return Mono.justOrEmpty(orders.get(id));
+        }
+
+        @Override
+        public Flux<Order> findByEventId(EventId eventId) {
+            return Flux.fromStream(orders.values().stream()
+                    .filter(order -> order.eventId().equals(eventId)));
         }
 
         void store(Order order) { orders.put(order.id(), order); }

@@ -58,17 +58,25 @@ public class TicketReservationDynamoDbRepository {
     public Mono<ReservationResult> reserveTicketsAtomically(EventId eventId,
                                                              int quantity,
                                                              List<Ticket> reservedTickets) {
-        return Mono.fromCallable(() -> doTransactWriteItems(eventId, quantity, reservedTickets))
+        return Mono.fromCallable(() -> doTransactWriteItems(eventId, quantity, reservedTickets, false))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    public Mono<ReservationResult> grantComplimentaryAtomically(EventId eventId,
+                                                                int quantity,
+                                                                List<Ticket> complimentaryTickets) {
+        return Mono.fromCallable(() -> doTransactWriteItems(eventId, quantity, complimentaryTickets, true))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
     private ReservationResult doTransactWriteItems(EventId eventId,
                                                     int quantity,
-                                                    List<Ticket> reservedTickets) {
+                                                    List<Ticket> reservedTickets,
+                                                    boolean complimentary) {
         List<TransactWriteItem> transactItems = new ArrayList<>(reservedTickets.size() + 1);
 
         // 1. Event Update: relative counter adjustment with condition available >= :qty
-        transactItems.add(buildEventUpdateItem(eventId, quantity));
+        transactItems.add(buildEventUpdateItem(eventId, quantity, complimentary));
 
         // 2. Ticket Puts: full item with condition status = :available
         for (Ticket ticket : reservedTickets) {
@@ -90,21 +98,26 @@ public class TicketReservationDynamoDbRepository {
     /**
      * Builds a TransactWriteItem for the Event with a relative update expression.
      *
-     * <p>Update: {@code SET available = available - :qty, reserved = reserved + :qty}
+     * <p>For reservation: {@code SET available = available - :qty, reserved = reserved + :qty}
+     * For complimentary: {@code SET available = available - :qty, complimentary = complimentary + :qty}
      * Condition: {@code available >= :qty}</p>
      */
-    private TransactWriteItem buildEventUpdateItem(EventId eventId, int quantity) {
+    private TransactWriteItem buildEventUpdateItem(EventId eventId, int quantity, boolean complimentary) {
         Map<String, AttributeValue> eventKey = Map.of(
                 "eventId", AttributeValue.builder().s(eventId.value().toString()).build());
 
         Map<String, AttributeValue> expressionValues = Map.of(
                 ":qty", AttributeValue.builder().n(String.valueOf(quantity)).build());
 
+        String updateExpression = complimentary
+                ? "SET available = available - :qty, complimentary = complimentary + :qty"
+                : "SET available = available - :qty, reserved = reserved + :qty";
+
         return TransactWriteItem.builder()
                 .update(builder -> builder
                         .tableName(eventTable.tableName())
                         .key(eventKey)
-                        .updateExpression("SET available = available - :qty, reserved = reserved + :qty")
+                        .updateExpression(updateExpression)
                         .conditionExpression("available >= :qty")
                         .expressionAttributeValues(expressionValues)
                         .build())

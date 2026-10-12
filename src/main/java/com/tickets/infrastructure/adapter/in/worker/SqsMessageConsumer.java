@@ -2,6 +2,7 @@ package com.tickets.infrastructure.adapter.in.worker;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.tickets.domain.exception.DomainException;
 import com.tickets.infrastructure.config.AwsSqsProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +79,14 @@ public class SqsMessageConsumer {
             log.debug("Processed and deleted SQS message id={}, type={}", message.messageId(), type);
 
         } catch (Exception e) {
-            log.error("Failed to process SQS message id={}, leaving in queue: {}",
-                    message.messageId(), e.getMessage(), e);
+            if (isPermanentFailure(e)) {
+                log.error("Permanent failure for SQS message id={}, deleting from queue: {}",
+                        message.messageId(), e.getMessage(), e);
+                deleteMessage(message);
+            } else {
+                log.error("Failed to process SQS message id={}, leaving in queue: {}",
+                        message.messageId(), e.getMessage(), e);
+            }
         }
     }
 
@@ -88,5 +95,25 @@ public class SqsMessageConsumer {
                 .queueUrl(properties.queueUrl())
                 .receiptHandle(message.receiptHandle())
                 .build());
+    }
+
+    /**
+     * Determines if the failure is permanent (retrying will never succeed).
+     *
+     * <p>Domain exceptions ({@link DomainException}) represent permanent
+     * business rule violations — e.g. invalid order, order not found, invalid
+     * event. These should be deleted from the queue to avoid poison messages.
+     * Other exceptions (e.g. transient infrastructure errors) are left in
+     * the queue for retry.</p>
+     */
+    private boolean isPermanentFailure(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof DomainException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

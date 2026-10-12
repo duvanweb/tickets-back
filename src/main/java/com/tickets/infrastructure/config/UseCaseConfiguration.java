@@ -8,6 +8,7 @@ import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
+import com.tickets.application.port.in.order.ListOrdersByEventUseCase;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.in.order.ReleaseExpiredReservationsUseCase;
 import com.tickets.application.port.out.publishers.MessagePublisher;
@@ -24,6 +25,7 @@ import com.tickets.application.usecase.order.ConfirmOrderService;
 import com.tickets.application.usecase.order.CreateOrderService;
 import com.tickets.application.usecase.order.GetOrderService;
 import com.tickets.application.usecase.order.GrantComplimentaryService;
+import com.tickets.application.usecase.order.ListOrdersByEventService;
 import com.tickets.application.usecase.order.ProcessOrderService;
 import com.tickets.application.usecase.order.ReleaseExpiredReservationsService;
 import org.springframework.context.annotation.Bean;
@@ -57,8 +59,9 @@ public class UseCaseConfiguration {
 
     @Bean
     public CreateOrderUseCase createOrderUseCase(OrderRepository orderRepository,
+                                                  EventRepository eventRepository,
                                                   MessagePublisher messagePublisher) {
-        return new CreateOrderService(orderRepository, messagePublisher);
+        return new CreateOrderService(orderRepository, eventRepository, messagePublisher);
     }
 
     @Bean
@@ -101,9 +104,16 @@ public class UseCaseConfiguration {
     @Bean
     public GrantComplimentaryUseCase grantComplimentaryUseCase(
             TicketRepository ticketRepository,
-            EventRepository eventRepository,
             OrderRepository orderRepository,
-            TicketTransitionRepository transitionRepository) {
-        return new GrantComplimentaryService(ticketRepository, eventRepository, orderRepository, transitionRepository);
+            TicketTransitionRepository transitionRepository,
+            TicketReservationRepository ticketReservationRepository) {
+        return new GrantComplimentaryService(ticketRepository, orderRepository,
+                transitionRepository, ticketReservationRepository);
+    }
+
+    @Bean
+    public ListOrdersByEventUseCase listOrdersByEventUseCase(OrderRepository orderRepository,
+                                                              EventRepository eventRepository) {
+        return new ListOrdersByEventService(orderRepository, eventRepository);
     }
 }

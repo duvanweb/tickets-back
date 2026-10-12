@@ -5,6 +5,7 @@ import com.tickets.application.port.in.event.GetAvailabilityUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
+import com.tickets.application.port.in.order.ListOrdersByEventUseCase;
 import com.tickets.application.port.in.event.CreateEventUseCase.CreateEventCommand;
 import com.tickets.application.usecase.event.model.EventAvailability;
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase.GrantComplimentaryCommand;
@@ -34,6 +35,7 @@ import reactor.core.publisher.Mono;
  *   <li>{@code GET /api/events} — list all events (200 OK)</li>
  *   <li>{@code GET /api/events/{id}/availability} — real-time availability (200 OK)</li>
  *   <li>{@code POST /api/events/{id}/complimentary} — grant complimentary tickets (201 Created)</li>
+ *   <li>{@code GET /api/events/{id}/orders} — list orders for an event (200 OK / 404)</li>
  * </ul></p>
  */
 @RestController
@@ -45,17 +47,20 @@ public class EventController {
     private final ListEventsUseCase listEventsUseCase;
     private final GetAvailabilityUseCase getAvailabilityUseCase;
     private final GrantComplimentaryUseCase grantComplimentaryUseCase;
+    private final ListOrdersByEventUseCase listOrdersByEventUseCase;
 
     public EventController(CreateEventUseCase createEventUseCase,
                            GetEventUseCase getEventUseCase,
                            ListEventsUseCase listEventsUseCase,
                            GetAvailabilityUseCase getAvailabilityUseCase,
-                           GrantComplimentaryUseCase grantComplimentaryUseCase) {
+                           GrantComplimentaryUseCase grantComplimentaryUseCase,
+                           ListOrdersByEventUseCase listOrdersByEventUseCase) {
         this.createEventUseCase = createEventUseCase;
         this.getEventUseCase = getEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
         this.getAvailabilityUseCase = getAvailabilityUseCase;
         this.grantComplimentaryUseCase = grantComplimentaryUseCase;
+        this.listOrdersByEventUseCase = listOrdersByEventUseCase;
     }
 
     @PostMapping
@@ -96,5 +101,11 @@ public class EventController {
                 .map(order -> ResponseEntity
                         .created(java.net.URI.create("/api/orders/" + order.id().value()))
                         .body(OrderDtoMapper.toResponse(order)));
+    }
+
+    @GetMapping("/{id}/orders")
+    public Flux<OrderResponse> getOrdersByEvent(@PathVariable String id) {
+        return listOrdersByEventUseCase.findByEventId(EventId.of(id))
+                .map(OrderDtoMapper::toResponse);
     }
 }

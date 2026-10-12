@@ -28,4 +28,11 @@ public class TicketReservationPersistenceAdapter implements TicketReservationRep
                                                              List<Ticket> reservedTickets) {
         return dynamoDbRepository.reserveTicketsAtomically(eventId, quantity, reservedTickets);
     }
+
+    @Override
+    public Mono<ReservationResult> grantComplimentaryAtomically(EventId eventId,
+                                                                int quantity,
+                                                                List<Ticket> complimentaryTickets) {
+        return dynamoDbRepository.grantComplimentaryAtomically(eventId, quantity, complimentaryTickets);
+    }
 }
