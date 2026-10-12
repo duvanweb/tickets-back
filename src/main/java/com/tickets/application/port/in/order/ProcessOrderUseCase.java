@@ -1,7 +1,8 @@
 package com.tickets.application.port.in.order;
 
-import com.tickets.application.usecase.order.ProcessOrderCommand;
+import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
+import com.tickets.domain.model.order.OrderId;
 import reactor.core.publisher.Mono;
 
 /**
@@ -12,6 +13,16 @@ import reactor.core.publisher.Mono;
  * transitions to {@code REJECTED}.</p>
  */
 public interface ProcessOrderUseCase {
+
+    /**
+     * Command for processing an order from the queue.
+     *
+     * @param orderId    the order ID to process
+     * @param eventId    the event ID to reserve tickets for
+     * @param customerId the customer placing the order
+     * @param quantity   the number of tickets requested
+     */
+    record ProcessOrderCommand(OrderId orderId, EventId eventId, String customerId, int quantity) {}
 
     Mono<Order> process(ProcessOrderCommand command);
 }

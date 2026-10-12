@@ -1,4 +1,5 @@
 package com.tickets.application.usecase.order;
+import com.tickets.application.port.in.order.CreateOrderUseCase.CreateOrderCommand;
 
 import com.tickets.application.port.out.publishers.MessagePublisher;
 import com.tickets.application.port.out.repositories.OrderRepository;

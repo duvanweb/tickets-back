@@ -1,4 +1,5 @@
 package com.tickets.application.usecase.event;
+import com.tickets.application.usecase.event.model.EventAvailability;
 
 import com.tickets.application.port.in.event.GetAvailabilityUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;

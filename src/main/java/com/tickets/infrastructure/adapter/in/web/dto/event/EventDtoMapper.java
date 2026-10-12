@@ -1,8 +1,8 @@
 package com.tickets.infrastructure.adapter.in.web.dto.event;
 
-import com.tickets.application.usecase.event.CreateEventCommand;
-import com.tickets.application.usecase.event.EventAvailability;
-import com.tickets.application.usecase.order.GrantComplimentaryCommand;
+import com.tickets.application.port.in.event.CreateEventUseCase.CreateEventCommand;
+import com.tickets.application.usecase.event.model.EventAvailability;
+import com.tickets.application.port.in.order.GrantComplimentaryUseCase.GrantComplimentaryCommand;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
 

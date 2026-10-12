@@ -1,4 +1,5 @@
 package com.tickets.application.usecase.event;
+import com.tickets.application.port.in.event.CreateEventUseCase.CreateEventCommand;
 
 import com.tickets.application.port.in.event.CreateEventUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;

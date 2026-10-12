@@ -1,4 +1,5 @@
 package com.tickets.application.usecase.order;
+import com.tickets.application.port.in.order.ProcessOrderUseCase.ProcessOrderCommand;
 
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
