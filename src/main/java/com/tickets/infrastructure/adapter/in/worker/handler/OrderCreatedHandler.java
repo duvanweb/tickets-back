@@ -3,7 +3,7 @@ package com.tickets.infrastructure.adapter.in.worker.handler;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
-import com.tickets.application.usecase.order.ProcessOrderCommand;
+import com.tickets.application.port.in.order.ProcessOrderUseCase.ProcessOrderCommand;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.OrderId;
 import com.tickets.infrastructure.adapter.in.worker.MessageHandler;

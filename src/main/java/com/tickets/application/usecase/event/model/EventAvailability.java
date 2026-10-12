@@ -1,4 +1,4 @@
-package com.tickets.application.usecase.event;
+package com.tickets.application.usecase.event.model;
 
 import com.tickets.domain.model.event.EventId;
 

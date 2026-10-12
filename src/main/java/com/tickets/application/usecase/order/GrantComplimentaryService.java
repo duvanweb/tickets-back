@@ -1,4 +1,5 @@
 package com.tickets.application.usecase.order;
+import com.tickets.application.port.in.order.GrantComplimentaryUseCase.GrantComplimentaryCommand;
 
 import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;

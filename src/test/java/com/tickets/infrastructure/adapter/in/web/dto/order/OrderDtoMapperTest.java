@@ -1,6 +1,6 @@
 package com.tickets.infrastructure.adapter.in.web.dto.order;
 
-import com.tickets.application.usecase.order.CreateOrderCommand;
+import com.tickets.application.port.in.order.CreateOrderUseCase.CreateOrderCommand;
 import com.tickets.domain.model.event.EventId;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.order.OrderStatus;

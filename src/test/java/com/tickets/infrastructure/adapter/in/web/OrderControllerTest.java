@@ -3,7 +3,7 @@ package com.tickets.infrastructure.adapter.in.web;
 import com.tickets.application.port.in.order.ConfirmOrderUseCase;
 import com.tickets.application.port.in.order.CreateOrderUseCase;
 import com.tickets.application.port.in.order.GetOrderUseCase;
-import com.tickets.application.usecase.order.CreateOrderCommand;
+import com.tickets.application.port.in.order.CreateOrderUseCase.CreateOrderCommand;
 import com.tickets.domain.exception.InvalidOrderException;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.event.EventId;
