@@ -1,6 +1,5 @@
 package com.tickets.infrastructure.adapter.out.persistence;
 
-import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.domain.model.ticket.TicketId;
 import com.tickets.domain.model.ticket.TicketTransition;
 import com.tickets.infrastructure.adapter.out.persistence.entity.TicketTransitionEntity;
@@ -21,14 +20,14 @@ import software.amazon.awssdk.enhanced.dynamodb.model.WriteBatch;
 import java.util.List;
 
 /**
- * DynamoDB implementation of {@link TicketTransitionRepository}.
+ * DynamoDB operations for {@link TicketTransition} using the Enhanced Client.
  *
  * <p>All blocking DynamoDB calls are wrapped in {@code Mono.fromCallable} and
  * subscribed on {@code Schedulers.boundedElastic()} to avoid blocking the
  * Netty event loop.</p>
  */
 @Component
-public class TicketTransitionDynamoDbRepository implements TicketTransitionRepository {
+public class TicketTransitionDynamoDbRepository {
 
     private static final int BATCH_SIZE = 25;
 
@@ -41,7 +40,6 @@ public class TicketTransitionDynamoDbRepository implements TicketTransitionRepos
         this.enhancedClient = enhancedClient;
     }
 
-    @Override
     public Mono<Void> saveAll(List<TicketTransition> transitions) {
         if (transitions.isEmpty()) {
             return Mono.empty();
@@ -70,7 +68,6 @@ public class TicketTransitionDynamoDbRepository implements TicketTransitionRepos
                 .then();
     }
 
-    @Override
     public Flux<TicketTransition> findByTicketId(TicketId ticketId) {
         return Mono.fromCallable(() -> {
                     DynamoDbIndex<TicketTransitionEntity> index =
