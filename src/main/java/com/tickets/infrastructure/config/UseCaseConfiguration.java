@@ -14,6 +14,7 @@ import com.tickets.application.port.out.publishers.MessagePublisher;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketReservationRepository;
 import com.tickets.application.port.out.repositories.TicketTransitionRepository;
 import com.tickets.application.usecase.event.CreateEventService;
 import com.tickets.application.usecase.event.GetAvailabilityService;
@@ -69,8 +70,10 @@ public class UseCaseConfiguration {
     public ProcessOrderUseCase processOrderUseCase(OrderRepository orderRepository,
                                                     TicketRepository ticketRepository,
                                                     EventRepository eventRepository,
-                                                    TicketTransitionRepository transitionRepository) {
-        return new ProcessOrderService(orderRepository, ticketRepository, eventRepository, transitionRepository);
+                                                    TicketTransitionRepository transitionRepository,
+                                                    TicketReservationRepository ticketReservationRepository) {
+        return new ProcessOrderService(orderRepository, ticketRepository, eventRepository,
+                                        transitionRepository, ticketReservationRepository);
     }
 
     @Bean

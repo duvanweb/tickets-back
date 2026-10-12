@@ -3,8 +3,11 @@ package com.tickets.application.usecase.order;
 import com.tickets.application.port.in.order.ProcessOrderUseCase;
 import com.tickets.application.port.out.repositories.EventRepository;
 import com.tickets.application.port.out.repositories.OrderRepository;
+import com.tickets.application.port.out.repositories.ReservationResult;
 import com.tickets.application.port.out.repositories.TicketRepository;
+import com.tickets.application.port.out.repositories.TicketReservationRepository;
 import com.tickets.application.port.out.repositories.TicketTransitionRepository;
+import com.tickets.domain.exception.InvalidOrderException;
 import com.tickets.domain.exception.OrderNotFoundException;
 import com.tickets.domain.model.order.Order;
 import com.tickets.domain.model.ticket.Ticket;
@@ -18,58 +21,65 @@ import java.util.List;
 /**
  * Implementation of {@link ProcessOrderUseCase}.
  *
- * <p>Loads the order, finds available tickets for the event, and either:
- * <ul>
- *   <li>Reserves N tickets (AVAILABLE → RESERVED with 10-minute TTL), updates event counters,
- *       and transitions the order to RESERVED — if enough tickets are available.</li>
- *   <li>Rejects the order (PENDING → REJECTED) — if not enough tickets are available.</li>
- * </ul></p>
+ * <p>Loads the order, finds available tickets for the event, and attempts an
+ * atomic reservation via DynamoDB TransactWriteItems. If the transaction
+ * succeeds, saves audit transitions and transitions the order to RESERVED.
+ * If the Event condition fails (not enough availability), rejects the order.
+ * If a Ticket condition fails (tickets claimed by another transaction),
+ * retries with a fresh set of available tickets (up to {@value #MAX_RETRIES} times).</p>
  */
 public final class ProcessOrderService implements ProcessOrderUseCase {
 
     private static final int RESERVATION_TTL_MINUTES = 10;
+    private static final int MAX_RETRIES = 3;
+    private static final int MAX_TICKETS_PER_ORDER = 99;
 
     private final OrderRepository orderRepository;
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
     private final TicketTransitionRepository transitionRepository;
+    private final TicketReservationRepository ticketReservationRepository;
 
     public ProcessOrderService(OrderRepository orderRepository,
                                TicketRepository ticketRepository,
                                EventRepository eventRepository,
-                               TicketTransitionRepository transitionRepository) {
+                               TicketTransitionRepository transitionRepository,
+                               TicketReservationRepository ticketReservationRepository) {
         this.orderRepository = orderRepository;
         this.ticketRepository = ticketRepository;
         this.eventRepository = eventRepository;
         this.transitionRepository = transitionRepository;
+        this.ticketReservationRepository = ticketReservationRepository;
     }
 
     @Override
     public Mono<Order> process(ProcessOrderCommand command) {
+        if (command.quantity() > MAX_TICKETS_PER_ORDER) {
+            return Mono.error(new InvalidOrderException(
+                    "Quantity exceeds maximum of " + MAX_TICKETS_PER_ORDER + " tickets per order"));
+        }
         return orderRepository.findById(command.orderId())
                 .switchIfEmpty(Mono.error(new OrderNotFoundException(
                         "Order not found with id: " + command.orderId())))
-                .flatMap(order -> reserveOrReject(order, command));
+                .flatMap(order -> reserveWithRetries(order, command, 1));
     }
 
-    private Mono<Order> reserveOrReject(Order order, ProcessOrderCommand command) {
+    private Mono<Order> reserveWithRetries(Order order, ProcessOrderCommand command, int attempt) {
+        if (attempt > MAX_RETRIES) {
+            return rejectOrder(order);
+        }
         return ticketRepository.findAvailableByEvent(command.eventId(), command.quantity())
                 .collectList()
                 .flatMap(availableTickets -> {
                     if (availableTickets.size() < command.quantity()) {
                         return rejectOrder(order);
                     }
-                    return reserveOrder(order, command, availableTickets);
+                    return attemptReservation(order, command, availableTickets, attempt);
                 });
     }
 
-    private Mono<Order> rejectOrder(Order order) {
-        Order rejected = order.reject();
-        return orderRepository.save(rejected);
-    }
-
-    private Mono<Order> reserveOrder(Order order, ProcessOrderCommand command,
-                                     List<Ticket> availableTickets) {
+    private Mono<Order> attemptReservation(Order order, ProcessOrderCommand command,
+                                           List<Ticket> availableTickets, int attempt) {
         LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES);
         String orderIdStr = order.id().value().toString();
 
@@ -82,20 +92,22 @@ public final class ProcessOrderService implements ProcessOrderUseCase {
                 reservedTickets.stream().map(Ticket::id).toList(),
                 reservedUntil);
 
-        return ticketRepository.saveAll(reservedTickets)
-                .then(saveTransitions(reservedTickets, TicketStatus.AVAILABLE, TicketStatus.RESERVED, orderIdStr))
-                .then(updateEventCounters(command.eventId(), command.quantity()))
-                .then(orderRepository.save(reservedOrder));
+        return ticketReservationRepository.reserveTicketsAtomically(
+                        command.eventId(), command.quantity(), reservedTickets)
+                .flatMap(result -> switch (result) {
+                    case ReservationResult.Success ignored ->
+                            saveTransitions(reservedTickets, TicketStatus.AVAILABLE, TicketStatus.RESERVED, orderIdStr)
+                                    .then(orderRepository.save(reservedOrder));
+                    case ReservationResult.EventConditionFailed ignored ->
+                            rejectOrder(order);
+                    case ReservationResult.TicketConditionFailed ignored ->
+                            reserveWithRetries(order, command, attempt + 1);
+                });
     }
 
-    private Mono<Void> updateEventCounters(com.tickets.domain.model.event.EventId eventId,
-                                            int quantity) {
-        return eventRepository.findById(eventId)
-                .flatMap(event -> {
-                    com.tickets.domain.model.event.Event updated = event.reserve(quantity);
-                    return eventRepository.save(updated);
-                })
-                .then();
+    private Mono<Order> rejectOrder(Order order) {
+        Order rejected = order.reject();
+        return orderRepository.save(rejected);
     }
 
     private Mono<Void> saveTransitions(List<Ticket> tickets, TicketStatus from, TicketStatus to,
