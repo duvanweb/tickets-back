@@ -1,12 +1,21 @@
 package com.tickets.infrastructure.adapter.in.web;
 
 import com.tickets.application.port.in.event.CreateEventUseCase;
+import com.tickets.application.port.in.event.GetAvailabilityUseCase;
 import com.tickets.application.port.in.event.GetEventUseCase;
 import com.tickets.application.port.in.event.ListEventsUseCase;
-import com.tickets.application.usecase.event.CreateEventCommand;
+import com.tickets.application.port.in.order.GrantComplimentaryUseCase;
+import com.tickets.application.port.in.order.ListOrdersByEventUseCase;
+import com.tickets.application.port.in.event.CreateEventUseCase.CreateEventCommand;
+import com.tickets.application.usecase.event.model.EventAvailability;
+import com.tickets.application.port.in.order.GrantComplimentaryUseCase.GrantComplimentaryCommand;
 import com.tickets.domain.exception.EventNotFoundException;
 import com.tickets.domain.model.event.Event;
 import com.tickets.domain.model.event.EventId;
+import com.tickets.domain.model.order.Order;
+import com.tickets.domain.model.order.OrderId;
+import com.tickets.domain.model.order.OrderStatus;
+import com.tickets.domain.model.ticket.TicketId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +27,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -34,11 +44,22 @@ class EventControllerTest {
     @Mock
     private ListEventsUseCase listEventsUseCase;
 
+    @Mock
+    private GetAvailabilityUseCase getAvailabilityUseCase;
+
+    @Mock
+    private GrantComplimentaryUseCase grantComplimentaryUseCase;
+
+    @Mock
+    private ListOrdersByEventUseCase listOrdersByEventUseCase;
+
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        EventController controller = new EventController(createEventUseCase, getEventUseCase, listEventsUseCase);
+        EventController controller = new EventController(createEventUseCase, getEventUseCase,
+                listEventsUseCase, getAvailabilityUseCase, grantComplimentaryUseCase,
+                listOrdersByEventUseCase);
         webTestClient = WebTestClient.bindToController(controller)
                 .controllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -62,6 +83,10 @@ class EventControllerTest {
                 .jsonPath("$.date").isEqualTo("2026-12-15T19:30:00")
                 .jsonPath("$.place").isEqualTo("Estadio Nacional")
                 .jsonPath("$.totalCapacity").isEqualTo(5000)
+                .jsonPath("$.available").isEqualTo(5000)
+                .jsonPath("$.reserved").isEqualTo(0)
+                .jsonPath("$.sold").isEqualTo(0)
+                .jsonPath("$.complimentary").isEqualTo(0)
                 .jsonPath("$.id").isNotEmpty();
     }
 
@@ -108,7 +133,7 @@ class EventControllerTest {
     @Test
     void getById_whenExists_returns200() {
         EventId id = EventId.generate();
-        Event event = Event.reconstitute(id, "Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000);
+        Event event = Event.reconstitute(id, "Concierto Rock", LocalDateTime.of(2026, 12, 15, 19, 30), "Estadio", 1000, 1000, 0, 0, 0);
         when(getEventUseCase.getById(id)).thenReturn(Mono.just(event));
 
         webTestClient.get().uri("/api/events/{id}", id.value().toString())
@@ -116,7 +141,11 @@ class EventControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.id").isEqualTo(id.value().toString())
-                .jsonPath("$.name").isEqualTo("Concierto Rock");
+                .jsonPath("$.name").isEqualTo("Concierto Rock")
+                .jsonPath("$.available").isEqualTo(1000)
+                .jsonPath("$.reserved").isEqualTo(0)
+                .jsonPath("$.sold").isEqualTo(0)
+                .jsonPath("$.complimentary").isEqualTo(0);
     }
 
     @Test
@@ -151,6 +180,129 @@ class EventControllerTest {
         when(listEventsUseCase.getAll()).thenReturn(Flux.empty());
 
         webTestClient.get().uri("/api/events")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(0);
+    }
+
+    @Test
+    void getAvailability_whenEventExists_returns200() {
+        EventId id = EventId.generate();
+        EventAvailability availability = new EventAvailability(id, 5000, 3000, 1000, 800, 200);
+        when(getAvailabilityUseCase.getAvailability(id)).thenReturn(Mono.just(availability));
+
+        webTestClient.get().uri("/api/events/{id}/availability", id.value().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.eventId").isEqualTo(id.value().toString())
+                .jsonPath("$.totalCapacity").isEqualTo(5000)
+                .jsonPath("$.available").isEqualTo(3000)
+                .jsonPath("$.reserved").isEqualTo(1000)
+                .jsonPath("$.sold").isEqualTo(800)
+                .jsonPath("$.complimentary").isEqualTo(200);
+    }
+
+    @Test
+    void getAvailability_whenNotFound_returns404() {
+        EventId id = EventId.generate();
+        when(getAvailabilityUseCase.getAvailability(id)).thenReturn(Mono.error(new EventNotFoundException("not found")));
+
+        webTestClient.get().uri("/api/events/{id}/availability", id.value().toString())
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("not found");
+    }
+
+    @Test
+    void grantComplimentary_withValidBody_returns201() {
+        EventId eventId = EventId.generate();
+        OrderId orderId = OrderId.generate();
+        List<TicketId> ticketIds = List.of(TicketId.generate(), TicketId.generate());
+        Order order = Order.reconstitute(orderId, eventId, "vip-customer", 2,
+                OrderStatus.COMPLIMENTARY, LocalDateTime.now(), null, ticketIds);
+        when(grantComplimentaryUseCase.grant(any(GrantComplimentaryCommand.class))).thenReturn(Mono.just(order));
+
+        webTestClient.post().uri("/api/events/{id}/complimentary", eventId.value().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"customerId": "vip-customer", "quantity": 2}""")
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(orderId.value().toString())
+                .jsonPath("$.status").isEqualTo("COMPLIMENTARY")
+                .jsonPath("$.customerId").isEqualTo("vip-customer")
+                .jsonPath("$.quantity").isEqualTo(2);
+    }
+
+    @Test
+    void grantComplimentary_withBlankCustomerId_returns400() {
+        EventId eventId = EventId.generate();
+
+        webTestClient.post().uri("/api/events/{id}/complimentary", eventId.value().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"customerId": "", "quantity": 2}""")
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void grantComplimentary_withZeroQuantity_returns400() {
+        EventId eventId = EventId.generate();
+
+        webTestClient.post().uri("/api/events/{id}/complimentary", eventId.value().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"customerId": "vip-customer", "quantity": 0}""")
+                .exchange()
+                .expectStatus().isBadRequest();
+    }
+
+    @Test
+    void getOrdersByEvent_whenEventExists_returns200() {
+        EventId eventId = EventId.generate();
+        OrderId orderId1 = OrderId.generate();
+        OrderId orderId2 = OrderId.generate();
+        Order order1 = Order.reconstitute(orderId1, eventId, "customer-1", 2,
+                OrderStatus.SOLD, LocalDateTime.now(), null, List.of());
+        Order order2 = Order.reconstitute(orderId2, eventId, "customer-2", 3,
+                OrderStatus.PENDING, LocalDateTime.now(), null, List.of());
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.just(order1, order2));
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2)
+                .jsonPath("$[0].id").isEqualTo(orderId1.value().toString())
+                .jsonPath("$[0].eventId").isEqualTo(eventId.value().toString())
+                .jsonPath("$[0].customerId").isEqualTo("customer-1")
+                .jsonPath("$[1].id").isEqualTo(orderId2.value().toString())
+                .jsonPath("$[1].customerId").isEqualTo("customer-2");
+    }
+
+    @Test
+    void getOrdersByEvent_whenEventNotFound_returns404() {
+        EventId eventId = EventId.generate();
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.error(new EventNotFoundException("Event not found")));
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Event not found");
+    }
+
+    @Test
+    void getOrdersByEvent_whenNoOrders_returns200EmptyArray() {
+        EventId eventId = EventId.generate();
+        when(listOrdersByEventUseCase.findByEventId(eventId)).thenReturn(Flux.empty());
+
+        webTestClient.get().uri("/api/events/{id}/orders", eventId.value().toString())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()

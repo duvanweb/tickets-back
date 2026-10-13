@@ -59,6 +59,10 @@
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
         </dependency>
 
@@ -87,6 +91,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.tickets.TicketsApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage-worker</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.tickets.WorkerApplication</mainClass>
+                            <classifier>worker</classifier>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -128,6 +147,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>com/tickets/TicketsApplication*</exclude>
+                                <exclude>com/tickets/WorkerApplication*</exclude>
                                 <exclude>com/tickets/infrastructure/config/*</exclude>
                                 <exclude>com/tickets/infrastructure/adapter/out/persistence/entity/*</exclude>
                             </excludes>

@@ -1,0 +1,13 @@
+spring:
+  main:
+    web-application-type: none
+    keep-alive: true
+
+aws:
+  sqs:
+    region: us-east-1
+    endpoint: http://localhost:4566
+    queue-url: http://localhost:4566/000000000000/order-created-queue
+    max-number-of-messages: 10
+    wait-time-seconds: 20
+    poll-interval-ms: 1000

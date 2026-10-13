@@ -121,7 +121,8 @@ class EventDynamoDbRepositoryTest {
 
         when(eventTable.index("name-index")).thenReturn(index);
         when(index.query(any(QueryEnhancedRequest.class))).thenReturn(queryResult);
-        when(queryResult.iterator()).thenReturn(List.of(page).iterator());
+        when(queryResult.stream()).thenReturn(java.util.stream.Stream.of(page));
+        when(page.items()).thenReturn(List.of(buildEntity("id-1", "Concierto Rock")));
 
         StepVerifier.create(repository.existsByName("Concierto Rock"))
                 .expectNext(true)
@@ -133,10 +134,12 @@ class EventDynamoDbRepositoryTest {
     void existsByName_whenNameDoesNotExist_returnsFalse() {
         DynamoDbIndex<EventEntity> index = mock(DynamoDbIndex.class);
         PageIterable<EventEntity> queryResult = mock(PageIterable.class);
+        Page<EventEntity> page = mock(Page.class);
 
         when(eventTable.index("name-index")).thenReturn(index);
         when(index.query(any(QueryEnhancedRequest.class))).thenReturn(queryResult);
-        when(queryResult.iterator()).thenReturn(List.<Page<EventEntity>>of().iterator());
+        when(queryResult.stream()).thenReturn(java.util.stream.Stream.of(page));
+        when(page.items()).thenReturn(List.of());
 
         StepVerifier.create(repository.existsByName("No existe"))
                 .expectNext(false)

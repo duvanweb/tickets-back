@@ -7,7 +7,9 @@ package com.tickets.domain.exception;
  * pattern matching over a closed set of permitted subclasses.</p>
  */
 public abstract sealed class DomainException extends RuntimeException
-        permits InvalidEventException, EventNotFoundException {
+        permits InvalidEventException, EventNotFoundException,
+                InvalidTicketException, TicketNotFoundException,
+                InvalidOrderException, OrderNotFoundException {
 
     protected DomainException(String message) {
         super(message);
